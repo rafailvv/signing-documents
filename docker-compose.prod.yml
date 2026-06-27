@@ -1,0 +1,61 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:?POSTGRES_USER is required} -d ${POSTGRES_DB:?POSTGRES_DB is required}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  signing-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      AUTH_REQUIRED: "true"
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      OPENAI_TIMEOUT_SECONDS: ${OPENAI_TIMEOUT_SECONDS:-45}
+      SIGNATURE_IMAGE_PATH: ${DOCKER_SIGNATURE_IMAGE_PATH:-/app/assets/подпись.png}
+      STAMP_IMAGE_PATH: ${DOCKER_STAMP_IMAGE_PATH:-/app/assets/Печать.png}
+      OCR_LANGUAGES: ${OCR_LANGUAGES:-rus+eng}
+      WORKDIR: /app/.runtime
+      APP_HOST: 0.0.0.0
+      APP_PORT: 8000
+      VIRTUAL_HOST: ${VIRTUAL_HOST:-sign.innoprog.ru}
+      VIRTUAL_PORT: 8000
+      LETSENCRYPT_HOST: ${LETSENCRYPT_HOST:-sign.innoprog.ru}
+      LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL:-admin@innoprog.ru}
+    expose:
+      - "8000"
+    volumes:
+      - signing_runtime:/app/.runtime
+      - ${ASSETS_DIR:-/opt/signing-documents/assets}:/app/assets:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - default
+      - web
+
+volumes:
+  pg_data:
+  signing_runtime:
+
+networks:
+  web:
+    external: true
