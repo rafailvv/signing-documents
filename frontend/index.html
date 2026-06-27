@@ -204,6 +204,70 @@
         margin-bottom: 10px;
       }
 
+      .settings-section {
+        margin-top: 14px;
+        padding-top: 14px;
+        border-top: 1px solid rgba(0, 0, 0, 0.1);
+      }
+
+      .asset-grid {
+        display: grid;
+        gap: 10px;
+      }
+
+      .asset-card {
+        display: grid;
+        grid-template-columns: 72px minmax(0, 1fr);
+        gap: 10px;
+        align-items: center;
+        padding: 10px;
+        border: 1px solid rgba(0, 0, 0, 0.12);
+        border-radius: 16px;
+        background: rgba(143, 106, 255, 0.035);
+      }
+
+      .asset-preview {
+        width: 72px;
+        height: 54px;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        border: 1px dashed rgba(122, 87, 247, 0.28);
+        border-radius: 14px;
+        background:
+          linear-gradient(45deg, rgba(143, 106, 255, 0.07) 25%, transparent 25%),
+          linear-gradient(-45deg, rgba(143, 106, 255, 0.07) 25%, transparent 25%),
+          linear-gradient(45deg, transparent 75%, rgba(143, 106, 255, 0.07) 75%),
+          linear-gradient(-45deg, transparent 75%, rgba(143, 106, 255, 0.07) 75%),
+          #fff;
+        background-size: 12px 12px;
+        background-position: 0 0, 0 6px, 6px -6px, -6px 0;
+      }
+
+      .asset-preview img {
+        max-width: 92%;
+        max-height: 88%;
+        object-fit: contain;
+      }
+
+      .asset-info {
+        min-width: 0;
+        display: grid;
+        gap: 7px;
+      }
+
+      .asset-name {
+        font-weight: 850;
+        line-height: 1.15;
+      }
+
+      .asset-action {
+        min-height: 36px;
+        padding: 7px 11px;
+        justify-self: start;
+        border-radius: 13px;
+      }
+
       .mode-tabs {
         display: grid;
         grid-template-columns: 1fr;
@@ -506,8 +570,8 @@
       }
 
       .editor-header {
-        display: flex;
-        justify-content: space-between;
+        display: grid;
+        grid-template-columns: minmax(180px, 1fr) auto minmax(max-content, auto);
         align-items: center;
         gap: 12px;
         margin-bottom: 14px;
@@ -523,10 +587,6 @@
 
       .editor-title-row {
         min-width: 0;
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        align-items: center;
-        gap: 10px;
       }
 
       .fullscreen-button {
@@ -544,16 +604,21 @@
       .editor-actions {
         display: flex;
         gap: 10px;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
         justify-content: flex-end;
+        min-width: max-content;
       }
 
       .add-actions,
       .finish-actions {
         display: flex;
         gap: 10px;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
         justify-content: flex-end;
+      }
+
+      .editor-actions button {
+        white-space: nowrap;
       }
 
       .editor-grid {
@@ -580,7 +645,7 @@
       .editor-column.fullscreen-mode {
         position: fixed;
         inset: 12px;
-        z-index: 180;
+        z-index: 1000;
         height: auto;
         min-height: 0;
         border-radius: 26px;
@@ -877,6 +942,21 @@
         flex-wrap: wrap;
       }
 
+      .icon-button {
+        width: 46px;
+        min-width: 46px;
+        height: 46px;
+        min-height: 46px;
+        padding: 0;
+        border-radius: 16px;
+        flex: 0 0 auto;
+      }
+
+      .icon-button svg {
+        width: 21px;
+        height: 21px;
+      }
+
       .user-login {
         max-width: 180px;
         padding: 8px 12px;
@@ -935,9 +1015,12 @@
           justify-content: stretch;
         }
 
-        .topbar-actions button,
-        .editor-actions button {
+        .topbar-actions button {
           flex: 1 1 100%;
+        }
+
+        .topbar-actions .icon-button {
+          flex: 0 0 44px;
         }
 
         .panel {
@@ -987,8 +1070,8 @@
         }
 
         .topbar-actions {
-          display: grid;
-          grid-template-columns: minmax(0, 1fr) auto;
+          display: flex;
+          flex-wrap: wrap;
           align-items: center;
           width: 100%;
         }
@@ -1000,7 +1083,16 @@
           white-space: nowrap;
         }
 
+        .topbar-actions .icon-button {
+          width: 42px;
+          min-width: 42px;
+          height: 42px;
+          min-height: 42px;
+          padding: 0;
+        }
+
         #download-all {
+          flex: 1 1 auto;
           min-width: 0;
           font-size: 0.9rem;
         }
@@ -1141,6 +1233,7 @@
         .editor-actions {
           display: grid;
           gap: 8px;
+          min-width: 0;
         }
 
         .add-actions {
@@ -1299,8 +1392,8 @@
         }
 
         .user-actions {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
+          order: 3;
+          display: flex;
           width: 100%;
         }
 
@@ -1361,18 +1454,36 @@
           <button id="download-all" class="primary-button" type="button" disabled>Скачать готовые PDF</button>
           <div class="user-actions">
             <span id="user-login" class="user-login"></span>
-            <button id="upload-signature" type="button">Подпись</button>
-            <button id="upload-stamp" type="button">Печать</button>
-            <button id="logout" type="button">Выйти</button>
           </div>
           <div class="settings-wrap">
-            <button id="settings-toggle" type="button">Настройки</button>
+            <button id="settings-toggle" class="icon-button" type="button" aria-label="Настройки" title="Настройки">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" stroke="currentColor" stroke-width="2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.04.04a2 2 0 0 1-2.83 2.83l-.04-.04A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 1.55V21a2 2 0 0 1-4 0v-.06a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.87.34l-.04.04a2 2 0 1 1-2.83-2.83l.04-.04A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3a2 2 0 0 1 0-4h.06A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.87l-.04-.04a2 2 0 1 1 2.83-2.83l.04.04A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3a2 2 0 0 1 4 0v.06a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.04-.04a2 2 0 1 1 2.83 2.83l-.04.04A1.7 1.7 0 0 0 19.4 9a1.7 1.7 0 0 0 1.55 1H21a2 2 0 0 1 0 4h-.06A1.7 1.7 0 0 0 19.4 15Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
             <div id="settings-menu" class="settings-menu" aria-hidden="true">
               <div class="settings-title">Что поставить</div>
               <div class="mode-tabs">
                 <button type="button" data-mode="both" class="active">Подпись и печать</button>
                 <button type="button" data-mode="signature">Только подпись</button>
                 <button type="button" data-mode="stamp">Только печать</button>
+              </div>
+              <div class="settings-section">
+                <div class="settings-title">Мои изображения</div>
+                <div class="asset-grid">
+                  <div class="asset-card">
+                    <div class="asset-preview"><img id="signature-preview" alt="Подпись" /></div>
+                    <div class="asset-info">
+                      <div class="asset-name">Подпись</div>
+                      <button id="upload-signature" class="asset-action" type="button">Заменить</button>
+                    </div>
+                  </div>
+                  <div class="asset-card">
+                    <div class="asset-preview"><img id="stamp-preview" alt="Печать" /></div>
+                    <div class="asset-info">
+                      <div class="asset-name">Печать</div>
+                      <button id="upload-stamp" class="asset-action" type="button">Заменить</button>
+                    </div>
+                  </div>
+                </div>
               </div>
               <div class="ai-row">
                 <div>
@@ -1386,6 +1497,9 @@
               </div>
             </div>
           </div>
+          <button id="logout" class="icon-button" type="button" aria-label="Выйти" title="Выйти">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M10 17l5-5-5-5M15 12H3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M13 3h5a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3h-5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </button>
         </div>
       </header>
 
@@ -1459,6 +1573,8 @@
       const userLoginEl = document.querySelector("#user-login");
       const uploadSignatureEl = document.querySelector("#upload-signature");
       const uploadStampEl = document.querySelector("#upload-stamp");
+      const signaturePreviewEl = document.querySelector("#signature-preview");
+      const stampPreviewEl = document.querySelector("#stamp-preview");
       const logoutEl = document.querySelector("#logout");
       const settingsWrapEl = document.querySelector(".settings-wrap");
       const settingsToggleEl = document.querySelector("#settings-toggle");
@@ -1622,6 +1738,12 @@
           if (assetUrls[type].startsWith("blob:")) URL.revokeObjectURL(assetUrls[type]);
           assetUrls[type] = URL.createObjectURL(blob);
         }
+        updateAssetPreviews();
+      }
+
+      function updateAssetPreviews() {
+        signaturePreviewEl.src = assetUrls.signature;
+        stampPreviewEl.src = assetUrls.stamp;
       }
 
       async function uploadUserAsset(kind, file) {
@@ -1638,6 +1760,7 @@
         await loadAssetUrls();
         renderEditor();
         showToast(kind === "signature" ? "Подпись загружена" : "Печать загружена");
+        setSettingsOpen(true);
       }
 
       function options() {
@@ -1863,10 +1986,10 @@
             <div class="editor-header">
               <div class="editor-title-row">
                 <h2 class="editor-title">${escapeHtml(currentPreview.filename)}</h2>
-                <button type="button" id="fullscreen-editor" class="fullscreen-button" aria-label="${isEditorFullscreen ? "Свернуть PDF" : "Открыть PDF на весь экран"}" title="${isEditorFullscreen ? "Свернуть PDF" : "Открыть PDF на весь экран"}">
-                  ${isEditorFullscreen ? icons.fullscreenExit : icons.fullscreen}
-                </button>
               </div>
+              <button type="button" id="fullscreen-editor" class="fullscreen-button" aria-label="${isEditorFullscreen ? "Свернуть PDF" : "Открыть PDF на весь экран"}" title="${isEditorFullscreen ? "Свернуть PDF" : "Открыть PDF на весь экран"}">
+                ${isEditorFullscreen ? icons.fullscreenExit : icons.fullscreen}
+              </button>
               <div class="editor-actions">
                 <div class="add-actions">
                   <button type="button" id="add-signature">${icons.plus} Подпись</button>
