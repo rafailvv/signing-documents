@@ -20,8 +20,13 @@ from .models import (
 )
 
 
-MAX_WORDS_PER_PAGE = 120
-MAX_CROPS = 6
+MAX_AI_PAGES = 6
+MAX_WORDS_PER_PAGE = 80
+MAX_TEXT_CHARS_PER_PAGE = 900
+MAX_LINES_PER_PAGE = 40
+MAX_CANDIDATES_PER_PAGE = 8
+MAX_LOCAL_PLACEMENTS = 8
+MAX_CROPS = 4
 POINTS_PER_MM = 72 / 25.4
 MIN_STAMP_SIZE = 35 * POINTS_PER_MM
 MAX_STAMP_SIZE = 45 * POINTS_PER_MM
@@ -141,20 +146,25 @@ def run_ai_analysis(
         base_url=base_url,
         timeout=timeout_seconds,
     )
+    ai_analyses = select_ai_analyses(
+        analyses=analyses,
+        local_placements=local_placements,
+    )
     content: list[dict[str, Any]] = [
         {
             "type": "input_text",
             "text": dumps(
                 build_ai_context(
-                    analyses=analyses,
+                    analyses=ai_analyses,
                     options=options,
                     local_placements=local_placements,
+                    total_pages=len(analyses),
                 ),
                 ensure_ascii=False,
             ),
         }
     ]
-    content.extend(build_crop_inputs(source_path=source_path, analyses=analyses))
+    content.extend(build_crop_inputs(source_path=source_path, analyses=ai_analyses))
 
     response = client.responses.create(
         model=model,
@@ -183,15 +193,28 @@ def build_ai_context(
     analyses: list[PageAnalysis],
     options: ProcessingOptions,
     local_placements: list[Placement] | None = None,
+    total_pages: int | None = None,
 ) -> dict[str, Any]:
+    selected_analyses = select_ai_analyses(
+        analyses=analyses,
+        local_placements=local_placements or [],
+    )
+    included_pages = [analysis.page_number for analysis in selected_analyses]
+    total = total_pages or len(analyses)
     return {
         "task": "Review local signature/stamp/name placements.",
         "default_signer_name": "Венедиктов Р.В.",
+        "document_summary": {
+            "total_pages": total,
+            "included_pages": included_pages,
+            "omitted_pages_count": max(0, total - len(included_pages)),
+        },
         "options": options.model_dump(),
         "local_placements": [
-            placement.model_dump(mode="json") for placement in (local_placements or [])
+            placement.model_dump(mode="json")
+            for placement in (local_placements or [])[:MAX_LOCAL_PLACEMENTS]
         ],
-        "pages": [serialize_page_analysis(analysis) for analysis in analyses],
+        "pages": [serialize_page_analysis(analysis) for analysis in selected_analyses],
     }
 
 
@@ -202,12 +225,18 @@ def serialize_page_analysis(analysis: PageAnalysis) -> dict[str, Any]:
         for word in analysis.words
         if not candidate_boxes or any(is_near(word.bbox, box, padding=120) for box in candidate_boxes)
     ][:MAX_WORDS_PER_PAGE]
+    lines = [
+        line
+        for line in analysis.lines
+        if not candidate_boxes or any(is_near(line.bbox, box, padding=160) for box in candidate_boxes)
+    ][:MAX_LINES_PER_PAGE]
+    text_excerpt = build_text_excerpt(analysis=analysis, words=words)
 
     return {
         "page_number": analysis.page_number,
         "page_size": analysis.page_size.model_dump(),
         "text_quality": analysis.text_quality,
-        "ocr_text": analysis.ocr_text[:3000],
+        "ocr_text": text_excerpt,
         "warnings": analysis.warnings,
         "words": [
             {"text": word.text, "bbox": word.bbox.model_dump()} for word in words
@@ -218,7 +247,7 @@ def serialize_page_analysis(analysis: PageAnalysis) -> dict[str, Any]:
                 "width": line.width,
                 "type": line.type,
             }
-            for line in analysis.lines
+            for line in lines
         ],
         "candidates": [
             {
@@ -233,9 +262,47 @@ def serialize_page_analysis(analysis: PageAnalysis) -> dict[str, Any]:
                 "confidence": candidate.confidence,
                 "warnings": candidate.warnings,
             }
-            for candidate in analysis.candidates
+            for candidate in analysis.candidates[:MAX_CANDIDATES_PER_PAGE]
         ],
     }
+
+
+def select_ai_analyses(
+    *,
+    analyses: list[PageAnalysis],
+    local_placements: list[Placement],
+) -> list[PageAnalysis]:
+    if len(analyses) <= MAX_AI_PAGES:
+        return analyses
+
+    placement_pages = {placement.page_number for placement in local_placements}
+    candidate_pages = {
+        analysis.page_number for analysis in analyses if analysis.candidates
+    }
+    warning_pages = {
+        analysis.page_number for analysis in analyses if analysis.warnings
+    }
+    first_pages = {analysis.page_number for analysis in analyses[:2]}
+
+    prioritized: list[int] = []
+    for page_group in (placement_pages, candidate_pages, warning_pages, first_pages):
+        for page_number in sorted(page_group):
+            if page_number not in prioritized:
+                prioritized.append(page_number)
+
+    if not prioritized:
+        prioritized = [analysis.page_number for analysis in analyses[:MAX_AI_PAGES]]
+
+    selected_pages = set(prioritized[:MAX_AI_PAGES])
+    return [analysis for analysis in analyses if analysis.page_number in selected_pages]
+
+
+def build_text_excerpt(*, analysis: PageAnalysis, words: list) -> str:
+    if words:
+        text = " ".join(word.text for word in words)
+    else:
+        text = analysis.ocr_text
+    return text[:MAX_TEXT_CHARS_PER_PAGE]
 
 
 def build_crop_inputs(

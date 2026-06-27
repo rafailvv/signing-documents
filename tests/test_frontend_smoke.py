@@ -61,6 +61,10 @@ def test_frontend_contains_mobile_ux_structure(tmp_path):
     assert "max-height: min(620px, calc(100dvh - 138px))" in html
     assert "overscroll-behavior: contain" in html
     assert "scrollbar-width: thin" in html
+    assert "uploadBatchMaxBytes" in html
+    assert "makeUploadBatches" in html
+    assert "uploadFileBatch" in html
+    assert "JSON.stringify({ [key.ids]: [id], options: options() })" in html
 
 
 def test_legal_documents_are_served(tmp_path):

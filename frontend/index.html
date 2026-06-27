@@ -1955,6 +1955,9 @@
       let previewLoadToken = 0;
       let previewIntersectionObserver = null;
 
+      const uploadBatchMaxBytes = 800 * 1024;
+      const uploadBatchMaxFiles = 3;
+
       const key = {
         id: "job" + "_id",
         ids: "job" + "_ids",
@@ -2293,24 +2296,54 @@
         }
 
         setBusy(true);
-        const data = new FormData();
-        for (const file of files) data.append("files", file);
-
+        const uploadedIds = [];
+        let failedCount = 0;
         try {
-          const response = await apiFetch("/upload", { method: "POST", body: data });
-          const body = await response.json();
-          const uploaded = (body.jobs || []).filter((job) => job[key.id]);
-          const failed = (body.jobs || []).filter((job) => job.status === "failed");
-          if (failed.length) showToast("Некоторые файлы не удалось загрузить");
-          await loadJobs();
-          if (uploaded.length) {
-            await analyzeJobs(uploaded.map((job) => job[key.id]));
+          const batches = makeUploadBatches(files);
+          for (const batch of batches) {
+            const body = await uploadFileBatch(batch);
+            const uploaded = (body.jobs || []).filter((job) => job[key.id]);
+            const failed = (body.jobs || []).filter((job) => job.status === "failed");
+            uploadedIds.push(...uploaded.map((job) => job[key.id]));
+            failedCount += failed.length;
+            await loadJobs();
           }
+
+          if (failedCount) showToast("Некоторые файлы не удалось загрузить");
+          if (uploadedIds.length) await analyzeJobs(uploadedIds);
         } catch {
           showToast("Не удалось загрузить документы");
         } finally {
           setBusy(false);
+          filesEl.value = "";
         }
+      }
+
+      function makeUploadBatches(files) {
+        const batches = [];
+        let current = [];
+        let currentBytes = 0;
+        for (const file of files) {
+          const wouldOverflowBytes = current.length > 0 && currentBytes + file.size > uploadBatchMaxBytes;
+          const wouldOverflowCount = current.length >= uploadBatchMaxFiles;
+          if (wouldOverflowBytes || wouldOverflowCount) {
+            batches.push(current);
+            current = [];
+            currentBytes = 0;
+          }
+          current.push(file);
+          currentBytes += file.size;
+        }
+        if (current.length) batches.push(current);
+        return batches;
+      }
+
+      async function uploadFileBatch(files) {
+        const data = new FormData();
+        for (const file of files) data.append("files", file);
+        const response = await apiFetch("/upload", { method: "POST", body: data });
+        if (!response.ok) throw new Error(`upload failed: ${response.status}`);
+        return response.json();
       }
 
       async function analyzeJobs(ids) {
@@ -2323,20 +2356,39 @@
           renderDocuments();
         }
         setBusy(true);
+        let failedAnalysisCount = 0;
         try {
-          const response = await apiFetch("/analyze", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ [key.ids]: ids, options: options() }),
-          });
-          const body = await response.json();
-          for (const result of body.jobs || []) {
-            analysisById.set(result[key.id], result);
+          for (const id of ids) {
+            try {
+              const response = await apiFetch("/analyze", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ [key.ids]: [id], options: options() }),
+              });
+              if (!response.ok) throw new Error(`analysis failed: ${response.status}`);
+              const body = await response.json();
+              for (const result of body.jobs || []) {
+                analysisById.set(result[key.id], result);
+              }
+            } catch {
+              failedAnalysisCount += 1;
+            } finally {
+              analyzingJobIds.delete(id);
+              await loadJobs();
+              renderDocuments();
+              if (selectedId === id && !isPreparing(jobs.find((job) => job[key.id] === id))) {
+                await openPreview(id);
+              }
+            }
           }
-          await loadJobs();
-          for (const id of ids) analyzingJobIds.delete(id);
-          renderDocuments();
-          await openPreview(ids[0]);
+          if (failedAnalysisCount) showToast("Некоторые документы не удалось проверить");
+          if (!currentPreview) {
+            const firstReadyId = ids.find((id) => {
+              const job = jobs.find((item) => item[key.id] === id);
+              return job && !isPreparing(job);
+            });
+            if (firstReadyId) await openPreview(firstReadyId);
+          }
         } catch {
           showToast("Не удалось выполнить анализ");
           for (const id of ids) analyzingJobIds.delete(id);

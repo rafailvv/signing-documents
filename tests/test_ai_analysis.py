@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
 from app.ai_analysis import (
+    MAX_AI_PAGES,
     apply_ai_review_decisions,
     build_ai_context,
     build_crop_inputs,
@@ -98,6 +99,41 @@ def test_ai_context_and_crops_include_only_candidate_context(tmp_path):
     assert crops
     assert crops[0]["type"] == "input_image"
     assert crops[0]["image_url"].startswith("data:image/png;base64,")
+
+
+def test_ai_context_limits_large_documents_to_relevant_pages(tmp_path):
+    pdf_path = tmp_path / "large_ai_context.pdf"
+    pdf_path.write_bytes(
+        make_signature_pdf_bytes(
+            text="Венедиктов Р.В.",
+            line=(210, 720, 430, 720),
+        )
+    )
+    base_analysis = analyze_pdf(pdf_path, ocr_languages="eng")[0]
+    analyses = [
+        base_analysis.model_copy(
+            update={
+                "page_number": page_number,
+                "candidates": [] if page_number != 10 else [
+                    candidate.model_copy(update={"page_number": page_number})
+                    for candidate in base_analysis.candidates
+                ],
+                "warnings": ["ocr_no_words"] if page_number == 12 else [],
+            },
+            deep=True,
+        )
+        for page_number in range(1, 21)
+    ]
+
+    context = build_ai_context(analyses=analyses, options=app_options())
+    included_pages = context["document_summary"]["included_pages"]
+
+    assert len(context["pages"]) <= MAX_AI_PAGES
+    assert 10 in included_pages
+    assert 12 in included_pages
+    assert context["document_summary"]["total_pages"] == 20
+    assert context["document_summary"]["omitted_pages_count"] >= 14
+    assert len(context["pages"][0]["ocr_text"]) <= 900
 
 
 def test_analyze_applies_ai_adjust_local_when_ai_succeeds(tmp_path, monkeypatch):
