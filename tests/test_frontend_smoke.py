@@ -29,6 +29,8 @@ def test_frontend_contains_mobile_ux_structure(tmp_path):
     assert ".finish-actions" in html
     assert "fullscreen-editor" in html
     assert "fullscreen-mode" in html
+    assert "editor-fullscreen-active" in html
+    assert ".app-shell.editor-fullscreen-active .workspace" in html
     assert "Открыть PDF на весь экран" in html
     assert ".editor-tools" in html
     assert "position: fixed" in html

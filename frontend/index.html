@@ -384,6 +384,14 @@
         align-items: start;
       }
 
+      .app-shell.editor-fullscreen-active .workspace {
+        z-index: 2000;
+      }
+
+      .app-shell.editor-fullscreen-active .topbar {
+        z-index: 1;
+      }
+
       .left-column,
       .editor-column {
         min-width: 0;
@@ -684,7 +692,7 @@
       .editor-column.fullscreen-mode {
         position: fixed;
         inset: 12px;
-        z-index: 1000;
+        z-index: 2100;
         height: auto;
         min-height: 0;
         border-radius: 26px;
@@ -2056,6 +2064,7 @@
           autoItems = [];
           selectedOverlay = null;
           isEditorFullscreen = false;
+          appShellEl.classList.remove("editor-fullscreen-active");
           analyzingJobIds = new Set();
           revokePreviewImageUrls();
           await loadJobs();
@@ -2417,6 +2426,7 @@
       }
 
       function applyEditorFullscreen(shouldScroll) {
+        appShellEl.classList.toggle("editor-fullscreen-active", isEditorFullscreen);
         editorEl.classList.toggle("fullscreen-mode", isEditorFullscreen);
         const button = document.querySelector("#fullscreen-editor");
         if (button) {
@@ -2717,6 +2727,8 @@
         currentPreview = null;
         currentItems = [];
         jobs = [];
+        isEditorFullscreen = false;
+        appShellEl.classList.remove("editor-fullscreen-active");
         revokePreviewImageUrls();
         renderDocuments();
         showAuth();
