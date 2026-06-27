@@ -18,6 +18,12 @@ class User(Base):
     email: Mapped[str | None] = mapped_column(String(255), unique=True, index=True, nullable=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, nullable=False)
+    accepted_offer_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    accepted_privacy_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    accepted_personal_data_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    accepted_ai_analysis_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    accepted_usage_rules_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    accepted_marketing_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     assets: Mapped["UserAssets | None"] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",

@@ -24,6 +24,17 @@ def make_client(tmp_path):
     return TestClient(app), app
 
 
+def legal_consents() -> dict[str, bool]:
+    return {
+        "accept_offer": True,
+        "accept_privacy": True,
+        "accept_personal_data": True,
+        "accept_ai_analysis": True,
+        "accept_usage_rules": True,
+        "accept_marketing": False,
+    }
+
+
 def register(client: TestClient, login: str) -> dict:
     response = client.post(
         "/auth/register",
@@ -32,6 +43,7 @@ def register(client: TestClient, login: str) -> dict:
             "login": login,
             "password": "secret123",
             "password_repeat": "secret123",
+            **legal_consents(),
         },
     )
     assert response.status_code == 200
@@ -78,6 +90,7 @@ def test_duplicate_register_and_bad_password(tmp_path):
             "login": "user",
             "password": "secret123",
             "password_repeat": "secret123",
+            **legal_consents(),
         },
     )
     assert duplicate.status_code == 409
@@ -89,6 +102,7 @@ def test_duplicate_register_and_bad_password(tmp_path):
             "login": "user2",
             "password": "secret123",
             "password_repeat": "secret123",
+            **legal_consents(),
         },
     )
     assert duplicate_email.status_code == 409
@@ -100,12 +114,29 @@ def test_duplicate_register_and_bad_password(tmp_path):
             "login": "user3",
             "password": "secret123",
             "password_repeat": "secret124",
+            **legal_consents(),
         },
     )
     assert password_mismatch.status_code == 422
 
     bad_password = client.post("/auth/login", json={"login": "user", "password": "wrong123"})
     assert bad_password.status_code == 401
+
+
+def test_register_requires_legal_consents(tmp_path):
+    client, _app = make_client(tmp_path)
+
+    response = client.post(
+        "/auth/register",
+        json={
+            "email": "consent@example.com",
+            "login": "consent",
+            "password": "secret123",
+            "password_repeat": "secret123",
+        },
+    )
+
+    assert response.status_code == 422
 
 
 def test_protected_endpoints_require_token(tmp_path):

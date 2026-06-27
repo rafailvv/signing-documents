@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from .auth import DUMMY_PASSWORD_HASH, AuthRateLimiter, auth_rate_limit_key, create_access_token, decode_access_token, ensure_assets, hash_password, make_current_user_dependency, user_to_auth_payload, verify_password
 from .config import Settings, get_settings
 from .db import init_db, session_dependency
-from .db_models import User
+from .db_models import User, utc_now
 from .models import (
     AnalyzeJobResult,
     AnalyzeRequest,
@@ -51,6 +51,17 @@ from .upload import validate_pdf_upload
 
 
 MAX_ASSET_BYTES = 5 * 1024 * 1024
+
+LEGAL_DOCUMENTS = {
+    "public-offer.pdf": "Публичная оферта",
+    "privacy-policy.pdf": "Политика конфиденциальности и обработки персональных данных",
+    "personal-data-consent.pdf": "Согласие на обработку персональных данных",
+    "ai-analysis-consent.pdf": "Согласие на AI-анализ через OpenAI API",
+    "marketing-consent.pdf": "Согласие на информационную и рекламную рассылку",
+    "usage-rules-disclaimer.pdf": "Правила использования и дисклеймер",
+    "user-guide.pdf": "Инструкция по эксплуатации сервиса",
+    "functional-characteristics.pdf": "Описание функциональных характеристик сервиса",
+}
 
 OPENAPI_TAGS = [
     {"name": "Auth", "description": "Регистрация, вход и получение текущего пользователя"},
@@ -97,6 +108,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.state.jobs = JobRepository()
     app.mount("/previews", StaticFiles(directory=storage.previews_dir), name="previews")
+    legal_dir = Path(__file__).resolve().parent.parent / "frontend" / "legal"
 
     @app.middleware("http")
     async def security_middleware(request: Request, call_next):
@@ -173,6 +185,27 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def favicon_aliases() -> FileResponse:
         return favicon()
 
+    @app.get("/legal", tags=["System"], summary="Список правовых документов")
+    def legal_documents() -> list[dict[str, str]]:
+        return [
+            {"title": title, "url": f"/legal/{filename}", "filename": filename}
+            for filename, title in LEGAL_DOCUMENTS.items()
+        ]
+
+    @app.get("/legal/{filename}", tags=["System"], summary="Правовой документ PDF")
+    def legal_document(filename: str) -> FileResponse:
+        if filename not in LEGAL_DOCUMENTS:
+            raise HTTPException(status_code=404, detail="legal document not found")
+        path = legal_dir / filename
+        if not path.exists():
+            raise HTTPException(status_code=404, detail="legal document file not found")
+        return FileResponse(
+            path,
+            media_type="application/pdf",
+            filename=filename,
+            headers={"Content-Disposition": f'inline; filename="{filename}"'},
+        )
+
     @app.get("/health", tags=["System"], summary="Healthcheck")
     def health() -> dict[str, object]:
         return {
@@ -201,7 +234,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         ip_limit_key = auth_rate_limit_key(request, action="register-ip", login="")
         ip_rate_limiter.check(ip_limit_key)
         rate_limiter.check(limit_key)
-        user = User(login=login, email=email, password_hash=hash_password(payload.password))
+        now = utc_now()
+        user = User(
+            login=login,
+            email=email,
+            password_hash=hash_password(payload.password),
+            accepted_offer_at=now,
+            accepted_privacy_at=now,
+            accepted_personal_data_at=now,
+            accepted_ai_analysis_at=now,
+            accepted_usage_rules_at=now,
+            accepted_marketing_at=now if payload.accept_marketing else None,
+        )
         db.add(user)
         try:
             db.commit()

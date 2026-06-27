@@ -268,6 +268,41 @@
         border-radius: 13px;
       }
 
+      .legal-links {
+        display: grid;
+        gap: 8px;
+      }
+
+      .legal-link {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        min-height: 42px;
+        padding: 9px 11px;
+        border: 1px solid rgba(0, 0, 0, 0.12);
+        border-radius: 14px;
+        background: rgba(143, 106, 255, 0.035);
+        color: #382565;
+        text-decoration: none;
+        font-weight: 760;
+        line-height: 1.18;
+      }
+
+      .legal-link:hover {
+        border-color: rgba(122, 87, 247, 0.36);
+      }
+
+      .legal-link span {
+        min-width: 0;
+      }
+
+      .legal-link svg {
+        width: 17px;
+        height: 17px;
+        flex: 0 0 auto;
+      }
+
       .mode-tabs {
         display: grid;
         grid-template-columns: 1fr;
@@ -925,6 +960,48 @@
         box-shadow: 0 0 0 4px rgba(143, 106, 255, 0.12);
       }
 
+      .auth-legal {
+        display: grid;
+        gap: 9px;
+        padding: 12px;
+        border: 1px solid rgba(122, 87, 247, 0.16);
+        border-radius: 18px;
+        background: rgba(143, 106, 255, 0.035);
+      }
+
+      .auth-legal-title {
+        margin: 0;
+        color: #4a3a7a;
+        font-weight: 820;
+      }
+
+      .legal-check {
+        display: grid;
+        grid-template-columns: 22px minmax(0, 1fr);
+        gap: 8px;
+        align-items: start;
+        color: #4a3a7a;
+        font-size: 0.88rem;
+        line-height: 1.32;
+      }
+
+      .legal-check input {
+        width: 18px;
+        height: 18px;
+        margin: 1px 0 0;
+        accent-color: var(--accent);
+      }
+
+      .legal-check a {
+        color: #5f42d6;
+        font-weight: 760;
+        text-decoration: none;
+      }
+
+      .legal-check a:hover {
+        text-decoration: underline;
+      }
+
       .auth-submit {
         width: 100%;
         min-height: 52px;
@@ -1506,6 +1583,33 @@
             <span>Повторить пароль</span>
             <input id="auth-password-repeat" type="password" autocomplete="new-password" minlength="6" />
           </label>
+          <div id="auth-legal-consents" class="auth-legal hidden">
+            <p class="auth-legal-title">Документы и согласия</p>
+            <label class="legal-check">
+              <input id="accept-offer" type="checkbox" data-required-consent />
+              <span>Принимаю <a href="/legal/public-offer.pdf" target="_blank" rel="noopener">публичную оферту</a></span>
+            </label>
+            <label class="legal-check">
+              <input id="accept-privacy" type="checkbox" data-required-consent />
+              <span>Ознакомлен с <a href="/legal/privacy-policy.pdf" target="_blank" rel="noopener">политикой конфиденциальности и обработки ПДн</a></span>
+            </label>
+            <label class="legal-check">
+              <input id="accept-personal-data" type="checkbox" data-required-consent />
+              <span>Даю <a href="/legal/personal-data-consent.pdf" target="_blank" rel="noopener">согласие на обработку персональных данных</a></span>
+            </label>
+            <label class="legal-check">
+              <input id="accept-ai-analysis" type="checkbox" data-required-consent />
+              <span>Даю <a href="/legal/ai-analysis-consent.pdf" target="_blank" rel="noopener">согласие на AI-анализ фрагментов документов</a></span>
+            </label>
+            <label class="legal-check">
+              <input id="accept-usage-rules" type="checkbox" data-required-consent />
+              <span>Принимаю <a href="/legal/usage-rules-disclaimer.pdf" target="_blank" rel="noopener">правила использования и дисклеймер</a></span>
+            </label>
+            <label class="legal-check">
+              <input id="accept-marketing" type="checkbox" />
+              <span>Согласен получать <a href="/legal/marketing-consent.pdf" target="_blank" rel="noopener">информационную и рекламную рассылку</a></span>
+            </label>
+          </div>
           <button id="auth-submit" class="primary-button auth-submit" type="submit">Войти</button>
         </form>
       </div>
@@ -1565,6 +1669,19 @@
                   <input id="ai-enabled" type="checkbox" checked />
                   <span></span>
                 </label>
+              </div>
+              <div class="settings-section">
+                <div class="settings-title">Правовые документы</div>
+                <div class="legal-links">
+                  <a class="legal-link" href="/legal/public-offer.pdf" target="_blank" rel="noopener"><span>Публичная оферта</span><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+                  <a class="legal-link" href="/legal/privacy-policy.pdf" target="_blank" rel="noopener"><span>Политика конфиденциальности</span><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+                  <a class="legal-link" href="/legal/personal-data-consent.pdf" target="_blank" rel="noopener"><span>Согласие на обработку ПДн</span><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+                  <a class="legal-link" href="/legal/ai-analysis-consent.pdf" target="_blank" rel="noopener"><span>Согласие на AI-анализ</span><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+                  <a class="legal-link" href="/legal/marketing-consent.pdf" target="_blank" rel="noopener"><span>Согласие на рассылку</span><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+                  <a class="legal-link" href="/legal/usage-rules-disclaimer.pdf" target="_blank" rel="noopener"><span>Правила и дисклеймер</span><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+                  <a class="legal-link" href="/legal/user-guide.pdf" target="_blank" rel="noopener"><span>Инструкция</span><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+                  <a class="legal-link" href="/legal/functional-characteristics.pdf" target="_blank" rel="noopener"><span>Функциональные характеристики</span><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+                </div>
               </div>
             </div>
           </div>
@@ -1629,6 +1746,13 @@
       const authPasswordEl = document.querySelector("#auth-password");
       const authPasswordRepeatFieldEl = document.querySelector("#auth-password-repeat-field");
       const authPasswordRepeatEl = document.querySelector("#auth-password-repeat");
+      const authLegalConsentsEl = document.querySelector("#auth-legal-consents");
+      const acceptOfferEl = document.querySelector("#accept-offer");
+      const acceptPrivacyEl = document.querySelector("#accept-privacy");
+      const acceptPersonalDataEl = document.querySelector("#accept-personal-data");
+      const acceptAiAnalysisEl = document.querySelector("#accept-ai-analysis");
+      const acceptUsageRulesEl = document.querySelector("#accept-usage-rules");
+      const acceptMarketingEl = document.querySelector("#accept-marketing");
       const authSubmitEl = document.querySelector("#auth-submit");
       const loginTabEl = document.querySelector("#login-tab");
       const registerTabEl = document.querySelector("#register-tab");
@@ -1707,11 +1831,16 @@
         authSubmitEl.textContent = authMode === "login" ? "Войти" : "Зарегистрироваться";
         authEmailFieldEl.classList.toggle("hidden", authMode === "login");
         authPasswordRepeatFieldEl.classList.toggle("hidden", authMode === "login");
+        authLegalConsentsEl.classList.toggle("hidden", authMode === "login");
         authEmailEl.required = authMode === "register";
         authPasswordRepeatEl.required = authMode === "register";
+        for (const input of authLegalConsentsEl.querySelectorAll("[data-required-consent]")) {
+          input.required = authMode === "register";
+        }
         if (authMode === "login") {
           authEmailEl.value = "";
           authPasswordRepeatEl.value = "";
+          for (const input of authLegalConsentsEl.querySelectorAll("input")) input.checked = false;
         }
         authPasswordEl.setAttribute("autocomplete", authMode === "login" ? "current-password" : "new-password");
       }
@@ -1762,6 +1891,12 @@
           }
           payload.email = authEmailEl.value.trim();
           payload.password_repeat = authPasswordRepeatEl.value;
+          payload.accept_offer = acceptOfferEl.checked;
+          payload.accept_privacy = acceptPrivacyEl.checked;
+          payload.accept_personal_data = acceptPersonalDataEl.checked;
+          payload.accept_ai_analysis = acceptAiAnalysisEl.checked;
+          payload.accept_usage_rules = acceptUsageRulesEl.checked;
+          payload.accept_marketing = acceptMarketingEl.checked;
         }
         authSubmitEl.disabled = true;
         try {
