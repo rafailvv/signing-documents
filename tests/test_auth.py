@@ -27,11 +27,7 @@ def make_client(tmp_path):
 def legal_consents() -> dict[str, bool]:
     return {
         "accept_offer": True,
-        "accept_privacy": True,
-        "accept_personal_data": True,
-        "accept_ai_analysis": True,
-        "accept_usage_rules": True,
-        "accept_marketing": False,
+        "accept_data_processing": True,
     }
 
 
@@ -77,6 +73,12 @@ def test_register_login_and_me(tmp_path):
     me = client.get("/auth/me", headers=headers(login.json()["access_token"]))
     assert me.status_code == 200
     assert me.json()["login"] == "rafail"
+
+    email_login = client.post("/auth/login", json={"login": "rafail@example.com", "password": "secret123"})
+    assert email_login.status_code == 200
+    email_me = client.get("/auth/me", headers=headers(email_login.json()["access_token"]))
+    assert email_me.status_code == 200
+    assert email_me.json()["email"] == "rafail@example.com"
 
 
 def test_duplicate_register_and_bad_password(tmp_path):

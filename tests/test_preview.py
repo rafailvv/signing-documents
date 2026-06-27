@@ -30,7 +30,7 @@ def upload_valid_pdf(client: TestClient, filename: str = "preview.pdf") -> str:
     return uploaded["job_id"]
 
 
-def test_preview_returns_page_metadata_and_renders_images(tmp_path):
+def test_preview_returns_page_metadata_without_eager_image_render(tmp_path):
     client, _app = make_client(tmp_path)
     job_id = upload_valid_pdf(client)
 
@@ -53,6 +53,21 @@ def test_preview_returns_page_metadata_and_renders_images(tmp_path):
     assert first["image_url"].startswith(f"/previews/{job_id}/page-1.png")
 
     preview_path = Path(tmp_path) / "previews" / job_id / "page-1.png"
+    assert not preview_path.exists()
+
+
+def test_preview_image_url_renders_requested_page_on_demand(tmp_path):
+    client, _app = make_client(tmp_path)
+    job_id = upload_valid_pdf(client)
+    preview_response = client.get(f"/preview/{job_id}")
+    image_url = preview_response.json()["pages"][0]["image_url"]
+    preview_path = Path(tmp_path) / "previews" / job_id / "page-1.png"
+
+    response = client.get(image_url)
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/png"
+    assert response.content.startswith(b"\x89PNG")
     assert preview_path.exists()
     assert preview_path.read_bytes().startswith(b"\x89PNG")
 

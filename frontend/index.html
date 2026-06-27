@@ -441,6 +441,10 @@
         background: rgba(143, 106, 255, 0.08);
       }
 
+      .mobile-file-actions {
+        display: none;
+      }
+
       .upload-icon {
         width: 52px;
         height: 52px;
@@ -476,6 +480,16 @@
       .document-list {
         display: grid;
         gap: 10px;
+      }
+
+      .documents-panel {
+        transition:
+          max-height 0.2s ease,
+          opacity 0.18s ease,
+          transform 0.18s ease,
+          padding 0.18s ease,
+          margin 0.18s ease,
+          border-color 0.18s ease;
       }
 
       .document-card {
@@ -746,17 +760,48 @@
       .page-canvas {
         position: relative;
         width: 100%;
+        aspect-ratio: var(--page-aspect, 0.707);
         line-height: 0;
+        overflow: hidden;
+        border: 1px solid var(--border);
         border-radius: 18px;
+        background: white;
       }
 
       .page-image {
         width: 100%;
-        height: auto;
+        height: 100%;
         display: block;
-        border: 1px solid var(--border);
-        border-radius: 18px;
+        object-fit: contain;
+        border: 0;
+        border-radius: inherit;
         background: white;
+        opacity: 1;
+        transition: opacity 0.18s ease;
+      }
+
+      .page-image.preview-pending {
+        opacity: 0;
+      }
+
+      .page-loader {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        color: var(--text-soft);
+        font-size: 0.92rem;
+        line-height: 1.3;
+        background: linear-gradient(135deg, #ffffff, #fbfaff);
+        text-align: center;
+      }
+
+      .page-canvas.image-ready .page-loader {
+        display: none;
+      }
+
+      .page-canvas.image-error .page-loader {
+        color: #b42318;
       }
 
       .overlay {
@@ -881,6 +926,34 @@
 
       .hidden {
         display: none !important;
+      }
+
+      .boot-screen {
+        position: relative;
+        z-index: 3;
+        min-height: 100dvh;
+        padding: 20px;
+        display: grid;
+        place-items: center;
+      }
+
+      .boot-card {
+        width: min(360px, 100%);
+        padding: 28px;
+        display: grid;
+        justify-items: center;
+        gap: 14px;
+        border: 1px solid var(--border);
+        border-radius: 26px;
+        background: rgba(255, 255, 255, 0.94);
+        box-shadow: 0 20px 48px rgba(36, 23, 79, 0.08);
+        color: var(--text-soft);
+        text-align: center;
+      }
+
+      .boot-card strong {
+        color: #241b43;
+        font-size: 1.08rem;
       }
 
       .auth-screen {
@@ -1255,30 +1328,69 @@
         }
 
         .app-shell.has-documents .upload-zone {
-          min-height: 58px;
-          display: grid;
-          grid-template-columns: 36px minmax(0, 1fr);
-          justify-items: stretch;
-          text-align: left;
-          padding: 10px 12px;
+          min-height: 62px;
+          display: block;
+          padding: 10px;
         }
 
-        .app-shell.has-documents .upload-icon {
-          width: 36px;
-          height: 36px;
-          border-radius: 14px;
-        }
-
+        .app-shell.has-documents .upload-icon,
         .app-shell.has-documents .upload-title,
-        .app-shell.has-documents .upload-subtitle {
+        .app-shell.has-documents .upload-subtitle,
+        .app-shell.has-documents #choose-files {
           display: none;
         }
 
-        .app-shell.has-documents #choose-files {
-          min-height: 40px;
+        .app-shell.has-documents .mobile-file-actions {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 46px;
+          gap: 8px;
           width: 100%;
-          padding: 8px 12px;
+        }
+
+        .mobile-file-actions button {
+          min-width: 0;
+          min-height: 42px;
+          padding: 8px 10px;
           border-radius: 15px;
+          white-space: nowrap;
+        }
+
+        .mobile-file-actions .secondary-button {
+          background: rgba(255, 255, 255, 0.75);
+        }
+
+        .mobile-documents-toggle {
+          padding: 0;
+        }
+
+        .mobile-documents-toggle svg {
+          width: 21px;
+          height: 21px;
+        }
+
+        .app-shell.documents-open .mobile-documents-toggle {
+          border-color: rgba(143, 106, 255, 0.55);
+          background: var(--accent-soft);
+          color: var(--accent-strong);
+        }
+
+        .app-shell.has-documents.documents-collapsed .documents-panel {
+          max-height: 0;
+          margin: 0;
+          padding-top: 0;
+          padding-bottom: 0;
+          overflow: hidden;
+          opacity: 0;
+          transform: translateY(-6px);
+          border-color: transparent;
+          pointer-events: none;
+        }
+
+        .app-shell.has-documents.documents-open .documents-panel {
+          max-height: 168px;
+          overflow: hidden;
+          opacity: 1;
+          transform: translateY(0);
         }
 
         .document-list {
@@ -1400,18 +1512,19 @@
 
         .editor-grid {
           display: block;
-          height: calc(100% - 106px);
+          height: calc(100% - 124px);
           min-height: 0;
         }
 
         .pages {
           display: grid;
           gap: 14px;
-          height: 100%;
+          height: calc(100% - 172px);
+          min-height: 140px;
           max-height: none;
           overflow-y: auto;
           overscroll-behavior: contain;
-          padding: 0 0 164px;
+          padding: 0 0 8px;
           align-content: start;
         }
 
@@ -1451,46 +1564,42 @@
         }
 
         .mobile-editor-actions {
-          position: fixed;
-          left: 10px;
-          right: 10px;
-          bottom: calc(128px + env(safe-area-inset-bottom));
-          z-index: 45;
+          position: static;
           display: grid;
           grid-template-columns: 1fr 1fr;
-          gap: 8px;
-          padding: 8px;
-          border: 1px solid var(--border);
-          border-radius: 20px;
-          background: rgba(255, 255, 255, 0.94);
-          box-shadow: 0 14px 34px rgba(36, 27, 67, 0.12);
-          backdrop-filter: blur(16px);
+          gap: 6px;
+          margin-top: 6px;
+          padding: 0;
+          border: 0;
+          border-radius: 0;
+          background: transparent;
+          box-shadow: none;
+          backdrop-filter: none;
         }
 
         .editor-tools {
-          position: fixed;
-          left: 10px;
-          right: 10px;
-          bottom: max(10px, env(safe-area-inset-bottom));
-          z-index: 70;
-          max-height: 116px;
-          overflow: hidden;
-          padding: 10px;
+          position: relative;
+          bottom: auto;
+          z-index: 35;
+          max-height: none;
+          overflow: visible;
+          margin-top: 8px;
+          padding: 8px;
           border-radius: 22px;
-          box-shadow: 0 18px 56px rgba(36, 27, 67, 0.18);
+          box-shadow: 0 16px 42px rgba(36, 27, 67, 0.14);
         }
 
         .selected-name {
           min-height: 0;
-          margin-bottom: 7px;
-          font-size: 0.88rem;
+          margin-bottom: 5px;
+          font-size: 0.84rem;
           font-weight: 750;
         }
 
         .tool-group {
           grid-template-columns: 1fr 1fr;
-          gap: 8px;
-          margin-bottom: 8px;
+          gap: 6px;
+          margin-bottom: 0;
         }
 
         .size-row {
@@ -1498,10 +1607,17 @@
         }
 
         .tool-group button {
-          min-height: 38px;
-          padding: 7px 8px;
+          min-height: 34px;
+          padding: 6px 8px;
           border-radius: 14px;
-          font-size: 0.9rem;
+          font-size: 0.86rem;
+        }
+
+        .mobile-editor-actions button {
+          min-height: 38px;
+          padding: 7px 10px;
+          border-radius: 15px;
+          font-size: 0.88rem;
         }
 
         details.tech-details {
@@ -1511,7 +1627,7 @@
         .toast {
           left: 10px;
           right: 10px;
-          bottom: calc(252px + env(safe-area-inset-bottom));
+          bottom: max(12px, env(safe-area-inset-bottom));
           max-width: none;
           border-radius: 18px;
         }
@@ -1530,11 +1646,16 @@
           top: 0;
         }
 
+        .editor-column.fullscreen-mode .editor-grid {
+          height: calc(100% - 124px);
+        }
+
         .editor-column.fullscreen-mode .pages {
-          height: calc(100dvh - 118px);
+          height: calc(100% - 172px);
+          min-height: 140px;
           max-height: none;
           overflow-y: auto;
-          padding-bottom: 164px;
+          padding-bottom: 8px;
         }
 
         .auth-screen {
@@ -1562,7 +1683,16 @@
     </style>
   </head>
   <body>
-    <section id="auth-screen" class="auth-screen">
+    <section id="boot-screen" class="boot-screen">
+      <div class="ambient ambient-left"></div>
+      <div class="ambient ambient-right"></div>
+      <div class="boot-card">
+        <div class="loader-ring" aria-hidden="true"></div>
+        <strong>Открываем сервис</strong>
+      </div>
+    </section>
+
+    <section id="auth-screen" class="auth-screen hidden">
       <div class="ambient ambient-left"></div>
       <div class="ambient ambient-right"></div>
       <div class="auth-card">
@@ -1580,7 +1710,7 @@
             <input id="auth-email" type="email" autocomplete="email" />
           </label>
           <label class="auth-field">
-            <span>Логин</span>
+            <span id="auth-login-label">Логин или почта</span>
             <input id="auth-login" autocomplete="username" required minlength="3" />
           </label>
           <label class="auth-field">
@@ -1595,27 +1725,11 @@
             <p class="auth-legal-title">Документы и согласия</p>
             <label class="legal-check">
               <input id="accept-offer" type="checkbox" data-required-consent />
-              <span>Принимаю <a href="/legal/public-offer.pdf" target="_blank" rel="noopener">публичную оферту</a></span>
+              <span>Принимаю <a href="/legal/public-offer.pdf" target="_blank" rel="noopener">публичную оферту</a> и <a href="/legal/usage-rules-disclaimer.pdf" target="_blank" rel="noopener">правила сервиса</a></span>
             </label>
             <label class="legal-check">
-              <input id="accept-privacy" type="checkbox" data-required-consent />
-              <span>Ознакомлен с <a href="/legal/privacy-policy.pdf" target="_blank" rel="noopener">политикой конфиденциальности и обработки ПДн</a></span>
-            </label>
-            <label class="legal-check">
-              <input id="accept-personal-data" type="checkbox" data-required-consent />
-              <span>Даю <a href="/legal/personal-data-consent.pdf" target="_blank" rel="noopener">согласие на обработку персональных данных</a></span>
-            </label>
-            <label class="legal-check">
-              <input id="accept-ai-analysis" type="checkbox" data-required-consent />
-              <span>Даю <a href="/legal/ai-analysis-consent.pdf" target="_blank" rel="noopener">согласие на AI-анализ фрагментов документов</a></span>
-            </label>
-            <label class="legal-check">
-              <input id="accept-usage-rules" type="checkbox" data-required-consent />
-              <span>Принимаю <a href="/legal/usage-rules-disclaimer.pdf" target="_blank" rel="noopener">правила использования и дисклеймер</a></span>
-            </label>
-            <label class="legal-check">
-              <input id="accept-marketing" type="checkbox" />
-              <span>Согласен получать <a href="/legal/marketing-consent.pdf" target="_blank" rel="noopener">информационную и рекламную рассылку</a></span>
+              <input id="accept-data-processing" type="checkbox" data-required-consent />
+              <span>Согласен с <a href="/legal/privacy-policy.pdf" target="_blank" rel="noopener">политикой конфиденциальности</a>, <a href="/legal/personal-data-consent.pdf" target="_blank" rel="noopener">обработкой персональных данных</a> и <a href="/legal/ai-analysis-consent.pdf" target="_blank" rel="noopener">AI-анализом фрагментов документов</a></span>
             </label>
           </div>
           <button id="auth-submit" class="primary-button auth-submit" type="submit">Войти</button>
@@ -1711,11 +1825,22 @@
               <p class="upload-title">Перетащите PDF сюда или выберите файлы</p>
               <p class="upload-subtitle">Можно загрузить несколько документов сразу</p>
               <button id="choose-files" class="primary-button" type="button">Выбрать PDF</button>
+              <div class="mobile-file-actions" aria-label="Действия с документами">
+                <button id="mobile-download-all" class="primary-button" type="button" disabled>Скачать все PDF</button>
+                <button id="mobile-choose-files" class="secondary-button" type="button">Добавить PDF</button>
+                <button id="mobile-documents-toggle" class="icon-button mobile-documents-toggle" type="button" aria-label="Документы" aria-expanded="false" title="Документы">
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M7 3h7l5 5v13H7V3Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
+                    <path d="M14 3v5h5" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
+                    <path d="M9 13h6M9 17h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                  </svg>
+                </button>
+              </div>
               <input id="files" class="hidden-input" type="file" accept="application/pdf,.pdf" multiple />
             </div>
           </section>
 
-          <section class="panel">
+          <section id="documents-panel" class="panel documents-panel">
             <h2 class="panel-title">Документы</h2>
             <div id="documents" class="document-list">
               <p class="empty-state">Пока ничего не загружено</p>
@@ -1745,22 +1870,20 @@
     </main>
 
     <script>
+      const bootScreenEl = document.querySelector("#boot-screen");
       const authScreenEl = document.querySelector("#auth-screen");
       const appShellEl = document.querySelector("#app-shell");
       const authFormEl = document.querySelector("#auth-form");
       const authEmailFieldEl = document.querySelector("#auth-email-field");
       const authEmailEl = document.querySelector("#auth-email");
+      const authLoginLabelEl = document.querySelector("#auth-login-label");
       const authLoginEl = document.querySelector("#auth-login");
       const authPasswordEl = document.querySelector("#auth-password");
       const authPasswordRepeatFieldEl = document.querySelector("#auth-password-repeat-field");
       const authPasswordRepeatEl = document.querySelector("#auth-password-repeat");
       const authLegalConsentsEl = document.querySelector("#auth-legal-consents");
       const acceptOfferEl = document.querySelector("#accept-offer");
-      const acceptPrivacyEl = document.querySelector("#accept-privacy");
-      const acceptPersonalDataEl = document.querySelector("#accept-personal-data");
-      const acceptAiAnalysisEl = document.querySelector("#accept-ai-analysis");
-      const acceptUsageRulesEl = document.querySelector("#accept-usage-rules");
-      const acceptMarketingEl = document.querySelector("#accept-marketing");
+      const acceptDataProcessingEl = document.querySelector("#accept-data-processing");
       const authSubmitEl = document.querySelector("#auth-submit");
       const loginTabEl = document.querySelector("#login-tab");
       const registerTabEl = document.querySelector("#register-tab");
@@ -1774,6 +1897,9 @@
       const uploadZoneEl = document.querySelector("#upload-zone");
       const toastEl = document.querySelector("#toast");
       const downloadAllEl = document.querySelector("#download-all");
+      const mobileDownloadAllEl = document.querySelector("#mobile-download-all");
+      const mobileChooseFilesEl = document.querySelector("#mobile-choose-files");
+      const mobileDocumentsToggleEl = document.querySelector("#mobile-documents-toggle");
       const userLoginEl = document.querySelector("#user-login");
       const uploadSignatureEl = document.querySelector("#upload-signature");
       const uploadStampEl = document.querySelector("#upload-stamp");
@@ -1796,6 +1922,7 @@
       let analyzingJobIds = new Set();
       let busy = false;
       let isEditorFullscreen = false;
+      let documentsPanelOpen = false;
       let authMode = "login";
       let authToken = localStorage.getItem("signing_auth_token") || "";
       let currentUser = null;
@@ -1804,6 +1931,9 @@
         stamp: "/assets/stamp",
       };
       let previewImageUrls = new Map();
+      let previewImagePromises = new Map();
+      let previewLoadToken = 0;
+      let previewIntersectionObserver = null;
 
       const key = {
         id: "job" + "_id",
@@ -1837,6 +1967,7 @@
         loginTabEl.classList.toggle("active", authMode === "login");
         registerTabEl.classList.toggle("active", authMode === "register");
         authSubmitEl.textContent = authMode === "login" ? "Войти" : "Зарегистрироваться";
+        authLoginLabelEl.textContent = authMode === "login" ? "Логин или почта" : "Логин";
         authEmailFieldEl.classList.toggle("hidden", authMode === "login");
         authPasswordRepeatFieldEl.classList.toggle("hidden", authMode === "login");
         authLegalConsentsEl.classList.toggle("hidden", authMode === "login");
@@ -1854,12 +1985,14 @@
       }
 
       function showAuth(message = "") {
+        bootScreenEl.classList.add("hidden");
         authScreenEl.classList.remove("hidden");
         appShellEl.classList.add("hidden");
         if (message) showAuthToast(message);
       }
 
       function showApp() {
+        bootScreenEl.classList.add("hidden");
         authScreenEl.classList.add("hidden");
         appShellEl.classList.remove("hidden");
         userLoginEl.textContent = currentUser?.login || "";
@@ -1872,10 +2005,15 @@
       }
 
       function revokePreviewImageUrls() {
+        if (previewIntersectionObserver) {
+          previewIntersectionObserver.disconnect();
+          previewIntersectionObserver = null;
+        }
         for (const url of previewImageUrls.values()) {
           if (url.startsWith("blob:")) URL.revokeObjectURL(url);
         }
         previewImageUrls = new Map();
+        previewImagePromises = new Map();
       }
 
       function showAuthToast(message) {
@@ -1900,11 +2038,12 @@
           payload.email = authEmailEl.value.trim();
           payload.password_repeat = authPasswordRepeatEl.value;
           payload.accept_offer = acceptOfferEl.checked;
-          payload.accept_privacy = acceptPrivacyEl.checked;
-          payload.accept_personal_data = acceptPersonalDataEl.checked;
-          payload.accept_ai_analysis = acceptAiAnalysisEl.checked;
-          payload.accept_usage_rules = acceptUsageRulesEl.checked;
-          payload.accept_marketing = acceptMarketingEl.checked;
+          payload.accept_data_processing = acceptDataProcessingEl.checked;
+          payload.accept_privacy = acceptDataProcessingEl.checked;
+          payload.accept_personal_data = acceptDataProcessingEl.checked;
+          payload.accept_ai_analysis = acceptDataProcessingEl.checked;
+          payload.accept_usage_rules = acceptOfferEl.checked;
+          payload.accept_marketing = false;
         }
         authSubmitEl.disabled = true;
         try {
@@ -1935,14 +2074,19 @@
       }
 
       async function resolveCurrentUser() {
-        const response = await apiFetch("/auth/me");
-        if (!response.ok) {
+        try {
+          const response = await apiFetch("/auth/me");
+          if (!response.ok) {
+            clearAuth();
+            showAuth();
+            return;
+          }
+          currentUser = await response.json();
+          await enterApplication();
+        } catch (error) {
           clearAuth();
           showAuth();
-          return;
         }
-        currentUser = await response.json();
-        await enterApplication();
       }
 
       async function loadAssetUrls() {
@@ -2049,7 +2193,16 @@
       function updateMobileWorkspaceState() {
         const hasDocuments = jobs.length > 0;
         appShellEl.classList.toggle("has-documents", hasDocuments);
+        appShellEl.classList.toggle("documents-open", hasDocuments && documentsPanelOpen);
+        appShellEl.classList.toggle("documents-collapsed", hasDocuments && !documentsPanelOpen);
         chooseFilesEl.textContent = hasDocuments ? "Добавить PDF" : "Выбрать PDF";
+        mobileDocumentsToggleEl.setAttribute("aria-expanded", hasDocuments && documentsPanelOpen ? "true" : "false");
+        mobileDocumentsToggleEl.disabled = !hasDocuments;
+      }
+
+      function setDocumentsPanelOpen(open) {
+        documentsPanelOpen = jobs.length > 0 && open;
+        updateMobileWorkspaceState();
       }
 
       async function resetWorkspace() {
@@ -2064,6 +2217,7 @@
           autoItems = [];
           selectedOverlay = null;
           isEditorFullscreen = false;
+          documentsPanelOpen = false;
           appShellEl.classList.remove("editor-fullscreen-active");
           analyzingJobIds = new Set();
           revokePreviewImageUrls();
@@ -2098,13 +2252,17 @@
             </div>
             <span class="status-pill ${preparing ? "preparing" : job.status}">${preparing ? '<span class="mini-spinner"></span>' : readableStatus(job.status)}</span>
           `;
-          card.addEventListener("click", () => openPreview(id));
+          card.addEventListener("click", () => {
+            setDocumentsPanelOpen(false);
+            openPreview(id);
+          });
           documentsEl.appendChild(card);
         }
       }
 
       function updateDownloadAllState() {
         downloadAllEl.disabled = jobs.length === 0 || busy;
+        mobileDownloadAllEl.disabled = jobs.length === 0 || busy;
       }
 
       async function uploadFiles(fileList) {
@@ -2172,6 +2330,8 @@
 
       async function openPreview(id) {
         const job = jobs.find((item) => item[key.id] === id);
+        const loadToken = ++previewLoadToken;
+        revokePreviewImageUrls();
         if (isPreparing(job)) {
           selectedId = id;
           currentPreview = null;
@@ -2191,6 +2351,7 @@
         renderDocuments();
         renderOpeningEditor(job);
         const response = await apiFetch(`/preview/${id}`);
+        if (loadToken !== previewLoadToken) return;
         if (!response.ok) {
           showToast("Не удалось открыть документ");
           currentPreview = null;
@@ -2198,7 +2359,7 @@
         }
 
         currentPreview = await response.json();
-        await loadPreviewImageUrls();
+        if (loadToken !== previewLoadToken) return;
         currentItems = structuredClone(currentPreview[key.items] || []);
         autoItems = structuredClone(currentItems);
         selectedOverlay = firstOverlayId();
@@ -2268,10 +2429,6 @@
             </div>
             <div class="editor-grid">
               <div id="pages" class="pages"></div>
-              <div class="mobile-editor-actions">
-                <button type="button" id="confirm-doc-mobile" class="primary-button">${icons.check} Подтвердить</button>
-                <button type="button" id="download-doc-mobile" class="primary-button">Скачать PDF</button>
-              </div>
               <aside class="editor-tools">
                 <p id="selected-name" class="selected-name">Выберите на странице</p>
                 <div class="tool-group">
@@ -2281,6 +2438,10 @@
                   </div>
                   <button type="button" id="delete-selected" class="danger-button">${icons.trash} Удалить</button>
                   <button type="button" id="restore-auto">Вернуть автоматически</button>
+                </div>
+                <div class="mobile-editor-actions">
+                  <button type="button" id="confirm-doc-mobile" class="primary-button">${icons.check} Подтвердить</button>
+                  <button type="button" id="download-doc-mobile" class="primary-button">Скачать PDF</button>
                 </div>
                 <details class="tech-details">
                   <summary>Технические детали</summary>
@@ -2310,8 +2471,9 @@
           pageEl.dataset.pageNumber = page.page_number;
           pageEl.innerHTML = `
             <p class="page-number">Страница ${page.page_number}</p>
-            <div class="page-canvas">
-              <img class="page-image" src="${page.image_url}" alt="Страница ${page.page_number}" />
+            <div class="page-canvas" style="--page-aspect: ${page.preview_width} / ${page.preview_height}">
+              <img class="page-image preview-pending" alt="Страница ${page.page_number}" data-page-url="${escapeHtml(page.image_url)}" />
+              <div class="page-loader">Загружаем страницу</div>
             </div>
           `;
           pagesEl.appendChild(pageEl);
@@ -2324,19 +2486,105 @@
         renderOverlays();
         renderSelectedTool();
         applyEditorFullscreen(false);
+        startLazyPreviewLoading(previewLoadToken);
       }
 
-      async function loadPreviewImageUrls() {
-        revokePreviewImageUrls();
+      function startLazyPreviewLoading(loadToken) {
         if (!currentPreview) return;
-        for (const page of currentPreview.pages || []) {
-          const response = await apiFetch(page.image_url);
-          if (!response.ok) continue;
-          const blob = await response.blob();
-          const blobUrl = URL.createObjectURL(blob);
-          previewImageUrls.set(page.image_url, blobUrl);
-          page.image_url = blobUrl;
+        if (previewIntersectionObserver) {
+          previewIntersectionObserver.disconnect();
+          previewIntersectionObserver = null;
         }
+
+        const pages = currentPreview.pages || [];
+        const pagesEl = document.querySelector("#pages");
+        const importantPages = new Set([
+          pages[0]?.page_number,
+          ...currentItems.map((item) => item.page_number),
+        ]);
+
+        for (const page of pages) {
+          if (importantPages.has(page.page_number)) loadPreviewPageImage(page, loadToken);
+        }
+
+        if (!("IntersectionObserver" in window) || !pagesEl) {
+          for (const page of pages) loadPreviewPageImage(page, loadToken);
+          return;
+        }
+
+        previewIntersectionObserver = new IntersectionObserver(
+          (entries) => {
+            for (const entry of entries) {
+              if (!entry.isIntersecting) continue;
+              const pageNumber = Number(entry.target.dataset.pageNumber);
+              const page = pages.find((item) => item.page_number === pageNumber);
+              if (page) loadPreviewPageImage(page, loadToken);
+              previewIntersectionObserver?.unobserve(entry.target);
+            }
+          },
+          {
+            root: pagesEl,
+            rootMargin: "900px 0px",
+            threshold: 0.01,
+          }
+        );
+
+        for (const pageEl of pagesEl.querySelectorAll(".page")) {
+          previewIntersectionObserver.observe(pageEl);
+        }
+      }
+
+      function applyPreviewPageImage(page, blobUrl) {
+        const image = document.querySelector(`.page[data-page-number="${page.page_number}"] .page-image`);
+        const canvas = image?.closest(".page-canvas");
+        if (!image || !canvas) return;
+        image.src = blobUrl;
+        image.classList.remove("preview-pending");
+        canvas.classList.add("image-ready");
+        canvas.classList.remove("image-error");
+      }
+
+      function markPreviewPageError(page) {
+        const canvas = document.querySelector(`.page[data-page-number="${page.page_number}"] .page-canvas`);
+        const loader = canvas?.querySelector(".page-loader");
+        if (!canvas || !loader) return;
+        canvas.classList.add("image-error");
+        loader.textContent = "Не удалось загрузить страницу";
+      }
+
+      function loadPreviewPageImage(page, loadToken) {
+        if (!page || loadToken !== previewLoadToken) return Promise.resolve();
+
+        const cachedUrl = previewImageUrls.get(page.image_url);
+        if (cachedUrl) {
+          applyPreviewPageImage(page, cachedUrl);
+          return Promise.resolve();
+        }
+
+        const existing = previewImagePromises.get(page.image_url);
+        if (existing) return existing;
+
+        const promise = apiFetch(page.image_url)
+          .then(async (response) => {
+            if (!response.ok) throw new Error("preview image failed");
+            const blob = await response.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            if (loadToken !== previewLoadToken) {
+              URL.revokeObjectURL(blobUrl);
+              return;
+            }
+            previewImageUrls.set(page.image_url, blobUrl);
+            applyPreviewPageImage(page, blobUrl);
+          })
+          .catch(() => {
+            if (loadToken === previewLoadToken) markPreviewPageError(page);
+          })
+          .finally(() => {
+            previewImagePromises.delete(page.image_url);
+          });
+
+        previewImagePromises.set(page.image_url, promise);
+        return promise;
       }
 
       function technicalSummary(job) {
@@ -2716,6 +2964,7 @@
       registerTabEl.addEventListener("click", () => setAuthMode("register"));
       authFormEl.addEventListener("submit", submitAuth);
       chooseFilesEl.addEventListener("click", () => filesEl.click());
+      mobileChooseFilesEl.addEventListener("click", () => filesEl.click());
       filesEl.addEventListener("change", () => uploadFiles(filesEl.files));
       uploadSignatureEl.addEventListener("click", () => signatureFileEl.click());
       uploadStampEl.addEventListener("click", () => stampFileEl.click());
@@ -2734,6 +2983,8 @@
         showAuth();
       });
       downloadAllEl.addEventListener("click", downloadAll);
+      mobileDownloadAllEl.addEventListener("click", downloadAll);
+      mobileDocumentsToggleEl.addEventListener("click", () => setDocumentsPanelOpen(!documentsPanelOpen));
       settingsToggleEl.addEventListener("click", (event) => {
         event.stopPropagation();
         setSettingsOpen(!settingsMenuEl.classList.contains("open"));

@@ -278,6 +278,7 @@ class RegisterRequest(AuthRequest):
     email: str = Field(min_length=5, max_length=255, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
     password_repeat: str = Field(min_length=6, max_length=200)
     accept_offer: bool = False
+    accept_data_processing: bool = False
     accept_privacy: bool = False
     accept_personal_data: bool = False
     accept_ai_analysis: bool = False
@@ -288,15 +289,10 @@ class RegisterRequest(AuthRequest):
     def validate_password_repeat(self) -> "RegisterRequest":
         if self.password != self.password_repeat:
             raise ValueError("passwords do not match")
-        if not all(
-            [
-                self.accept_offer,
-                self.accept_privacy,
-                self.accept_personal_data,
-                self.accept_ai_analysis,
-                self.accept_usage_rules,
-            ]
-        ):
+        data_processing_accepted = self.accept_data_processing or all(
+            [self.accept_privacy, self.accept_personal_data, self.accept_ai_analysis]
+        )
+        if not self.accept_offer or not data_processing_accepted:
             raise ValueError("required legal consents are missing")
         return self
 

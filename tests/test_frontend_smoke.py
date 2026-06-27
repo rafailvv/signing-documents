@@ -11,6 +11,9 @@ def test_frontend_contains_mobile_ux_structure(tmp_path):
 
     assert response.status_code == 200
     html = response.text
+    assert "boot-screen" in html
+    assert "Открываем сервис" in html
+    assert 'id="auth-screen" class="auth-screen hidden"' in html
     assert "auth-screen" in html
     assert "login-tab" in html
     assert "register-tab" in html
@@ -18,13 +21,28 @@ def test_frontend_contains_mobile_ux_structure(tmp_path):
     assert "auth-password-repeat" in html
     assert "auth-legal-consents" in html
     assert "accept-offer" in html
-    assert "accept-ai-analysis" in html
+    assert "accept-data-processing" in html
+    assert 'id="accept-privacy"' not in html
+    assert 'id="accept-personal-data"' not in html
+    assert 'id="accept-ai-analysis"' not in html
+    assert 'id="accept-usage-rules"' not in html
+    assert 'id="accept-marketing"' not in html
     assert "/legal/public-offer.pdf" in html
+    assert "/legal/privacy-policy.pdf" in html
+    assert "/legal/personal-data-consent.pdf" in html
+    assert "/legal/ai-analysis-consent.pdf" in html
     assert "Правовые документы" in html
     assert "Без кода и лишних шагов" not in html
     assert "upload-signature" in html
     assert "upload-stamp" in html
     assert "logout" in html
+    assert "mobile-file-actions" in html
+    assert "mobile-download-all" in html
+    assert "mobile-choose-files" in html
+    assert "mobile-documents-toggle" in html
+    assert "documents-panel" in html
+    assert "documents-collapsed" in html
+    assert "Скачать все PDF" in html
     assert "@media (max-width: 760px)" in html
     assert ".finish-actions" in html
     assert "fullscreen-editor" in html
@@ -37,6 +55,9 @@ def test_frontend_contains_mobile_ux_structure(tmp_path):
     assert "overflow-x: auto" in html
     assert "scroll-snap-type: x proximity" in html
     assert "Выберите на странице" in html
+    assert "startLazyPreviewLoading" in html
+    assert "IntersectionObserver" in html
+    assert "preview-pending" in html
 
 
 def test_legal_documents_are_served(tmp_path):

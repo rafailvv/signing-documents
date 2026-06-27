@@ -5,7 +5,7 @@ from pathlib import Path
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.responses import FileResponse, HTMLResponse, Response
-from fastapi.staticfiles import StaticFiles
+from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -44,7 +44,7 @@ from .ai_analysis import (
 )
 from .local_analysis import analyze_pdf
 from .pdf_export import export_jobs
-from .preview import render_preview
+from .preview import render_preview, render_preview_page
 from .repository import JobRepository
 from .storage import get_storage
 from .upload import validate_pdf_upload
@@ -107,7 +107,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         openapi_tags=OPENAPI_TAGS,
     )
     app.state.jobs = JobRepository()
-    app.mount("/previews", StaticFiles(directory=storage.previews_dir), name="previews")
     legal_dir = Path(__file__).resolve().parent.parent / "frontend" / "legal"
 
     @app.middleware("http")
@@ -269,7 +268,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         ip_limit_key = auth_rate_limit_key(request, action="login-ip", login="")
         ip_rate_limiter.check(ip_limit_key)
         rate_limiter.check(limit_key)
-        user = db.query(User).filter(User.login == payload.login.strip()).first()
+        login_or_email = payload.login.strip()
+        email_candidate = login_or_email.lower()
+        user = (
+            db.query(User)
+            .filter(or_(User.login == login_or_email, User.email == email_candidate))
+            .first()
+        )
         if not user or not verify_password(payload.password, user.password_hash):
             if not user:
                 verify_password(payload.password, DUMMY_PASSWORD_HASH)
@@ -728,6 +733,41 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             job.status = JobStatus.FAILED
             job.errors.append(f"preview failed: {exc}")
             raise HTTPException(status_code=422, detail="preview failed") from exc
+
+    @app.get("/previews/{job_id}/{filename}", include_in_schema=False)
+    def preview_image(
+        job_id: str,
+        filename: str,
+        current_user: User = Depends(get_current_user),
+    ) -> FileResponse:
+        job = app.state.jobs.get(job_id, current_user.id)
+        if job is None:
+            raise HTTPException(status_code=404, detail="job not found")
+        if not filename.startswith("page-") or not filename.endswith(".png"):
+            raise HTTPException(status_code=404, detail="preview image not found")
+
+        try:
+            page_number = int(filename.removeprefix("page-").removesuffix(".png"))
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail="preview image not found") from exc
+
+        try:
+            path = render_preview_page(
+                job_id=job.job_id,
+                source_path=job.source_path,
+                storage=storage,
+                page_number=page_number,
+            )
+        except IndexError as exc:
+            raise HTTPException(status_code=404, detail="preview image not found") from exc
+        except Exception as exc:
+            raise HTTPException(status_code=422, detail="preview image failed") from exc
+
+        return FileResponse(
+            path,
+            media_type="image/png",
+            headers={"Cache-Control": "private, max-age=3600"},
+        )
 
     @app.post("/placement/{job_id}", response_model=PlacementUpdateResponse, tags=["Documents"], summary="Сохранить placements")
     def save_placements(
