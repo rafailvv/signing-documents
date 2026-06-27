@@ -10,6 +10,7 @@ from app.ai_analysis import (
     build_ai_context,
     build_crop_inputs,
     parse_ai_response,
+    should_include_visual_context,
     should_request_ai_review,
 )
 from app.config import Settings
@@ -20,6 +21,7 @@ from app.models import (
     AIPlacementDecisions,
     BoundingBox,
     JobStatus,
+    SignatureTarget,
 )
 from tests.pdf_factory import make_signature_pdf_bytes
 
@@ -402,6 +404,52 @@ def test_should_request_ai_review_for_structured_documents(tmp_path):
 
     assert should_request_ai_review(
         filename="Счет №27.pdf",
+        analyses=analyses,
+        local_placements=local_placements,
+    )
+
+
+def test_should_not_request_ai_for_confident_local_with_weak_extra_fio_hits(tmp_path):
+    pdf_path = tmp_path / "education_program.pdf"
+    pdf_path.write_bytes(
+        make_signature_pdf_bytes(
+            text="Венедиктов Р.В.",
+            line=(210, 720, 430, 720),
+        )
+    )
+    analyses = analyze_pdf(pdf_path, ocr_languages="eng")
+    strong_candidate = analyses[0].candidates[0]
+    weak_fio_candidate = SignatureTarget(
+        candidate_id="weak_fio",
+        page_number=2,
+        line_bbox=None,
+        context_bbox=strong_candidate.context_bbox,
+        anchor="ФИО",
+        reason="anchor_without_line:fio_word",
+        confidence=0.25,
+        warnings=["line_not_found", "needs_manual_review"],
+    )
+    analyses.append(
+        analyses[0].model_copy(
+            update={
+                "page_number": 2,
+                "candidates": [weak_fio_candidate],
+                "warnings": [],
+            },
+            deep=True,
+        )
+    )
+    from app.auto_placement import create_auto_placements
+
+    local_placements = create_auto_placements(analyses, app_options())
+
+    assert not should_request_ai_review(
+        filename="Education_Programs_INNOPROG.pdf",
+        analyses=analyses,
+        local_placements=local_placements,
+    )
+    assert not should_include_visual_context(
+        filename="Education_Programs_INNOPROG.pdf",
         analyses=analyses,
         local_placements=local_placements,
     )

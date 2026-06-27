@@ -20,13 +20,15 @@ from .models import (
 )
 
 
-MAX_AI_PAGES = 6
-MAX_WORDS_PER_PAGE = 80
-MAX_TEXT_CHARS_PER_PAGE = 900
+MAX_AI_PAGES = 4
+MAX_WORDS_PER_PAGE = 60
+MAX_TEXT_CHARS_PER_PAGE = 700
 MAX_LINES_PER_PAGE = 40
-MAX_CANDIDATES_PER_PAGE = 8
-MAX_LOCAL_PLACEMENTS = 8
-MAX_CROPS = 4
+MAX_CANDIDATES_PER_PAGE = 6
+MAX_LOCAL_PLACEMENTS = 6
+MAX_CROPS = 2
+HIGH_CONFIDENCE_CANDIDATE = 0.7
+AI_CONFIDENT_LOCAL_THRESHOLD = 0.85
 POINTS_PER_MM = 72 / 25.4
 MIN_STAMP_SIZE = 35 * POINTS_PER_MM
 MAX_STAMP_SIZE = 45 * POINTS_PER_MM
@@ -164,7 +166,12 @@ def run_ai_analysis(
             ),
         }
     ]
-    content.extend(build_crop_inputs(source_path=source_path, analyses=ai_analyses))
+    if should_include_visual_context(
+        filename=source_path.name,
+        analyses=analyses,
+        local_placements=local_placements,
+    ):
+        content.extend(build_crop_inputs(source_path=source_path, analyses=ai_analyses))
 
     response = client.responses.create(
         model=model,
@@ -183,7 +190,9 @@ def run_ai_analysis(
                 "schema": AI_DECISION_SCHEMA,
             }
         },
+        max_output_tokens=1200,
         store=False,
+        truncation="auto",
     )
     return parse_ai_response(response.output_text)
 
@@ -277,10 +286,15 @@ def select_ai_analyses(
 
     placement_pages = {placement.page_number for placement in local_placements}
     candidate_pages = {
-        analysis.page_number for analysis in analyses if analysis.candidates
+        analysis.page_number
+        for analysis in analyses
+        if any(candidate.confidence >= HIGH_CONFIDENCE_CANDIDATE for candidate in analysis.candidates)
     }
     warning_pages = {
-        analysis.page_number for analysis in analyses if analysis.warnings
+        analysis.page_number
+        for analysis in analyses
+        if has_risky_warnings(analysis.warnings)
+        or any(has_risky_warnings(candidate.warnings) for candidate in analysis.candidates)
     }
     first_pages = {analysis.page_number for analysis in analyses[:2]}
 
@@ -401,30 +415,63 @@ def should_request_ai_review(
     local_placements: list[Placement],
 ) -> bool:
     candidates = [candidate for analysis in analyses for candidate in analysis.candidates]
+    strong_candidates = [
+        candidate for candidate in candidates if candidate.confidence >= HIGH_CONFIDENCE_CANDIDATE
+    ]
     if not candidates:
         return True
-    if len(candidates) != 1:
+    if len(strong_candidates) != 1:
         return True
     if len(local_placements) != 1:
         return True
 
-    candidate = candidates[0]
+    candidate = strong_candidates[0]
     warnings = {
         warning
         for analysis in analyses
         for warning in analysis.warnings
     } | set(candidate.warnings)
-    if any(
-        warning in {"ambiguous_multiple_lines", "likely_table_line"}
-        or warning.startswith(("ocr_failed", "ocr_no_words", "low_ocr_confidence"))
-        for warning in warnings
-    ):
+    if has_risky_warnings(warnings):
         return True
-    if candidate.confidence < 0.85:
+    if candidate.confidence < AI_CONFIDENT_LOCAL_THRESHOLD:
         return True
 
     lowered = filename.casefold()
     return any(keyword in lowered for keyword in ("упд", "счет", "спецификация"))
+
+
+def should_include_visual_context(
+    *,
+    filename: str,
+    analyses: list[PageAnalysis],
+    local_placements: list[Placement],
+) -> bool:
+    """Use image crops only when visual inspection can change the AI verdict."""
+    lowered = filename.casefold()
+    if any(keyword in lowered for keyword in ("упд", "счет", "спецификация")):
+        return True
+    if len(local_placements) != 1:
+        return True
+
+    candidates = [candidate for analysis in analyses for candidate in analysis.candidates]
+    strong_candidates = [
+        candidate for candidate in candidates if candidate.confidence >= HIGH_CONFIDENCE_CANDIDATE
+    ]
+    if len(strong_candidates) != 1:
+        return True
+    if has_risky_warnings(
+        warning for analysis in analyses for warning in analysis.warnings
+    ):
+        return True
+    return any(has_risky_warnings(candidate.warnings) for candidate in strong_candidates)
+
+
+def has_risky_warnings(warnings) -> bool:
+    return any(
+        warning in {"ambiguous_multiple_lines", "likely_table_line"}
+        or str(warning).startswith(("ocr_failed", "ocr_no_words", "low_ocr_confidence"))
+        for warning in warnings
+    )
 
 
 def placement_from_decision(decision: AIPlacementDecision) -> Placement | None:
