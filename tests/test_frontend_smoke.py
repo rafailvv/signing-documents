@@ -58,6 +58,9 @@ def test_frontend_contains_mobile_ux_structure(tmp_path):
     assert "startLazyPreviewLoading" in html
     assert "IntersectionObserver" in html
     assert "preview-pending" in html
+    assert "max-height: min(620px, calc(100dvh - 138px))" in html
+    assert "overscroll-behavior: contain" in html
+    assert "scrollbar-width: thin" in html
 
 
 def test_legal_documents_are_served(tmp_path):
