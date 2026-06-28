@@ -82,6 +82,34 @@ def test_parse_ai_response_rejects_invalid_json():
         parse_ai_response('{"decisions":[{"candidate_id":"missing_fields"}]}')
 
 
+def test_parse_ai_response_normalizes_unused_zero_bbox_to_null():
+    response = parse_ai_response(
+        json.dumps(
+            {
+                "decisions": [
+                    {
+                        "candidate_id": "target_1",
+                        "page_number": 1,
+                        "verdict": "manual_review",
+                        "should_sign": False,
+                        "should_stamp": False,
+                        "should_add_name": False,
+                        "name_text": None,
+                        "signature_bbox": None,
+                        "stamp_bbox": None,
+                        "name_bbox": {"x0": 0, "y0": 0, "x1": 0, "y1": 0},
+                        "confidence": 0.5,
+                        "needs_manual_review": True,
+                        "reason": "no safe name placement",
+                    }
+                ]
+            }
+        )
+    )
+
+    assert response.decisions[0].name_bbox is None
+
+
 def test_ai_context_and_crops_include_only_candidate_context(tmp_path):
     pdf_path = tmp_path / "ai_context.pdf"
     pdf_path.write_bytes(

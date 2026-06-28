@@ -119,6 +119,7 @@ Use verdict:
 - reject_auto: local placement is wrong; clear automatic placement.
 - manual_review: document is ambiguous; require human review.
 For manual_review, still return the best suggested bboxes when a plausible signing zone exists; use null bboxes only when there is no safe suggestion.
+Use null for unused bboxes. Never return zero-size boxes like {x0:0,y0:0,x1:0,y1:0}.
 
 Distinguish:
 - "Венедиктов Р.В." near a signature line: likely signable.
@@ -347,7 +348,39 @@ def build_crop_inputs(
 
 
 def parse_ai_response(output_text: str) -> AIPlacementDecisions:
-    return AIPlacementDecisions.model_validate(loads(output_text))
+    return AIPlacementDecisions.model_validate(normalize_ai_payload(loads(output_text)))
+
+
+def normalize_ai_payload(payload: Any) -> Any:
+    if not isinstance(payload, dict):
+        return payload
+    decisions = payload.get("decisions")
+    if not isinstance(decisions, list):
+        return payload
+
+    for decision in decisions:
+        if not isinstance(decision, dict):
+            continue
+        for bbox_field, flag_field in (
+            ("signature_bbox", "should_sign"),
+            ("stamp_bbox", "should_stamp"),
+            ("name_bbox", "should_add_name"),
+        ):
+            bbox = decision.get(bbox_field)
+            if bbox is None or valid_bbox_payload(bbox):
+                continue
+            if not decision.get(flag_field):
+                decision[bbox_field] = None
+    return payload
+
+
+def valid_bbox_payload(value: Any) -> bool:
+    if not isinstance(value, dict):
+        return False
+    try:
+        return float(value["x1"]) > float(value["x0"]) and float(value["y1"]) > float(value["y0"])
+    except (KeyError, TypeError, ValueError):
+        return False
 
 
 def placements_from_ai_decisions(
