@@ -38,12 +38,14 @@ def test_frontend_contains_mobile_ux_structure(tmp_path):
     assert "logout" in html
     assert "mobile-file-actions" in html
     assert "mobile-download-all" in html
-    assert "mobile-choose-files" in html
+    assert "mobile-choose-files" not in html
     assert "mobile-documents-toggle" in html
     assert "Можно загрузить несколько документов сразу" not in html
     assert "Добавить PDF" not in html
+    assert 'id="choose-files"' not in html
+    assert ">Выбрать PDF</button>" not in html
     assert 'id="upload-zone" class="upload-zone" role="button"' in html
-    assert 'chooseFilesEl.textContent = "Выбрать PDF"' in html
+    assert 'chooseFilesEl.textContent = "Выбрать PDF"' not in html
     assert 'uploadZoneEl.addEventListener("click"' in html
     assert "documents-panel" in html
     assert "documents-collapsed" in html

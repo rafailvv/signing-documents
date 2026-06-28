@@ -1303,11 +1303,15 @@
 
         .topbar-actions {
           display: grid;
-          grid-template-columns: auto auto auto;
+          grid-template-columns: auto auto;
           gap: 7px;
           align-items: center;
           justify-content: end;
           width: auto;
+        }
+
+        .user-login {
+          display: none;
         }
 
         .topbar-actions button {
@@ -1403,8 +1407,7 @@
 
         .app-shell.has-documents .upload-icon,
         .app-shell.has-documents .upload-title,
-        .app-shell.has-documents .upload-subtitle,
-        .app-shell.has-documents #choose-files {
+        .app-shell.has-documents .upload-subtitle {
           display: none;
         }
 
@@ -1892,10 +1895,8 @@
                 </svg>
               </div>
               <p class="upload-title">Перетащите PDF сюда или выберите файлы</p>
-              <button id="choose-files" class="primary-button" type="button">Выбрать PDF</button>
               <div class="mobile-file-actions" aria-label="Действия с документами">
                 <button id="mobile-download-all" class="primary-button" type="button" disabled>Скачать все PDF</button>
-                <button id="mobile-choose-files" class="secondary-button" type="button" hidden aria-label="Выбрать PDF"></button>
                 <button id="mobile-documents-toggle" class="icon-button mobile-documents-toggle" type="button" aria-label="Документы" aria-expanded="false" title="Документы">
                   <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                     <path d="M7 3h7l5 5v13H7V3Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
@@ -1959,14 +1960,12 @@
       const documentsEl = document.querySelector("#documents");
       const editorEl = document.querySelector("#editor");
       const filesEl = document.querySelector("#files");
-      const chooseFilesEl = document.querySelector("#choose-files");
       const signatureFileEl = document.querySelector("#signature-file");
       const stampFileEl = document.querySelector("#stamp-file");
       const uploadZoneEl = document.querySelector("#upload-zone");
       const toastEl = document.querySelector("#toast");
       const downloadAllEl = document.querySelector("#download-all");
       const mobileDownloadAllEl = document.querySelector("#mobile-download-all");
-      const mobileChooseFilesEl = document.querySelector("#mobile-choose-files");
       const mobileDocumentsToggleEl = document.querySelector("#mobile-documents-toggle");
       const userLoginEl = document.querySelector("#user-login");
       const uploadSignatureEl = document.querySelector("#upload-signature");
@@ -2267,7 +2266,6 @@
         appShellEl.classList.toggle("has-documents", hasDocuments);
         appShellEl.classList.toggle("documents-open", hasDocuments && documentsPanelOpen);
         appShellEl.classList.toggle("documents-collapsed", hasDocuments && !documentsPanelOpen);
-        chooseFilesEl.textContent = "Выбрать PDF";
         mobileDocumentsToggleEl.setAttribute("aria-expanded", hasDocuments && documentsPanelOpen ? "true" : "false");
         mobileDocumentsToggleEl.disabled = !hasDocuments;
       }
@@ -3161,8 +3159,6 @@
       loginTabEl.addEventListener("click", () => setAuthMode("login"));
       registerTabEl.addEventListener("click", () => setAuthMode("register"));
       authFormEl.addEventListener("submit", submitAuth);
-      chooseFilesEl.addEventListener("click", () => filesEl.click());
-      mobileChooseFilesEl.addEventListener("click", () => filesEl.click());
       filesEl.addEventListener("change", () => uploadFiles(filesEl.files));
       uploadSignatureEl.addEventListener("click", () => signatureFileEl.click());
       uploadStampEl.addEventListener("click", () => stampFileEl.click());
