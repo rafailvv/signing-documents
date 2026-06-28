@@ -2790,6 +2790,26 @@
         renderSelectedTool();
       }
 
+      function shouldClearSelectionFromPointer(event) {
+        if (!currentPreview || !selectedOverlay) return false;
+        if (!(event.target instanceof Element)) return false;
+        const interactiveSelector = [
+          ".overlay",
+          "button",
+          "a",
+          "input",
+          "textarea",
+          "select",
+          "label",
+          "summary",
+          "[role='button']",
+          ".document-card",
+          ".settings-menu",
+          ".auth-card",
+        ].join(",");
+        return !event.target.closest(interactiveSelector);
+      }
+
       function toggleEditorFullscreen() {
         isEditorFullscreen = !isEditorFullscreen;
         applyEditorFullscreen(true);
@@ -3170,6 +3190,7 @@
       document.addEventListener("pointerdown", (event) => {
         if (settingsWrapEl.contains(event.target)) return;
         setSettingsOpen(false);
+        if (shouldClearSelectionFromPointer(event)) clearSelection();
       });
       document.addEventListener("keydown", (event) => {
         if (event.key === "Escape") {
