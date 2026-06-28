@@ -1,4 +1,5 @@
 from fastapi.testclient import TestClient
+import fitz
 
 from app.config import Settings
 from app.local_analysis import (
@@ -8,6 +9,7 @@ from app.local_analysis import (
     find_anchor_hits,
     normalize_token,
 )
+from app.pdf_export import find_unicode_font
 from app.main import create_app
 from app.models import BoundingBox, DetectedLine, JobStatus, PageSize, WordBox
 from tests.pdf_factory import make_scanned_line_pdf_bytes, make_signature_pdf_bytes
@@ -88,6 +90,29 @@ def test_analyze_pdf_finds_general_director_near_line(tmp_path):
     assert candidate.anchor == "Генеральный директор"
     assert candidate.reason == "line_near_general_director"
     assert candidate.confidence >= 0.7
+
+
+def test_analyze_pdf_uses_text_underscore_signature_line(tmp_path):
+    path = tmp_path / "underscore_line.pdf"
+    document = fitz.open()
+    page = document.new_page(width=595, height=842)
+    font_path = find_unicode_font()
+    kwargs = {"fontfile": str(font_path), "fontname": "testfont"} if font_path else {}
+    page.insert_text((202, 570), "___________________________", fontsize=12, **kwargs)
+    page.insert_text((367, 570), "/ Венедиктов Рафаил Владимирович", fontsize=12, **kwargs)
+    document.save(path)
+    document.close()
+
+    analysis = analyze_pdf(path)[0]
+
+    assert any(line.type == "text_underscore" for line in analysis.lines)
+    assert len(analysis.candidates) == 1
+    candidate = analysis.candidates[0]
+    assert candidate.anchor == "Венедиктов"
+    assert candidate.confidence >= 0.7
+    assert candidate.line_bbox is not None
+    assert candidate.line_bbox.x0 < 210
+    assert candidate.line_bbox.x1 > 350
 
 
 def test_analyze_endpoint_saves_results_and_sets_ready_status(tmp_path):

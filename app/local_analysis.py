@@ -52,6 +52,10 @@ def analyze_pdf(source_path: Path, *, ocr_languages: str = "rus+eng") -> list[Pa
                 text_quality = "ocr" if words else "ocr_failed"
 
             lines = extract_horizontal_lines(page)
+            text_lines = extract_text_underscore_lines(words)
+            for text_line in text_lines:
+                if not overlaps_existing_line(text_line, lines):
+                    lines.append(text_line)
             if not lines:
                 lines = extract_raster_horizontal_lines(page)
                 if lines:
@@ -118,6 +122,33 @@ def extract_horizontal_lines(page: fitz.Page) -> list[DetectedLine]:
                     type="horizontal",
                 )
             )
+    return lines
+
+
+def extract_text_underscore_lines(words: list[WordBox]) -> list[DetectedLine]:
+    lines: list[DetectedLine] = []
+    for word in words:
+        text = word.text.strip()
+        if len(text) < 8:
+            continue
+        if text.count("_") / len(text) < 0.75:
+            continue
+        width = word.bbox.x1 - word.bbox.x0
+        if width < 45:
+            continue
+        y = word.bbox.y1 - 0.5
+        lines.append(
+            DetectedLine(
+                bbox=BoundingBox(
+                    x0=word.bbox.x0,
+                    y0=max(0, y - 0.5),
+                    x1=word.bbox.x1,
+                    y1=y + 0.5,
+                ),
+                width=width,
+                type="text_underscore",
+            )
+        )
     return lines
 
 
