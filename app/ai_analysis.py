@@ -118,6 +118,7 @@ Use verdict:
 - adjust_local: local placement is real but your returned coordinates are better.
 - reject_auto: local placement is wrong; clear automatic placement.
 - manual_review: document is ambiguous; require human review.
+For manual_review, still return the best suggested bboxes when a plausible signing zone exists; use null bboxes only when there is no safe suggestion.
 
 Distinguish:
 - "Венедиктов Р.В." near a signature line: likely signable.
@@ -372,11 +373,31 @@ def apply_ai_review_decisions(
     warnings: list[str] = []
     verdicts = {decision.verdict for decision in decisions.decisions}
     if "manual_review" in verdicts:
+        suggested_review_placements: list[Placement] = []
+        for decision in decisions.decisions:
+            if decision.verdict != "manual_review":
+                continue
+            placement = placement_from_decision(decision)
+            if placement is None:
+                continue
+            validation_error = validate_ai_placement(placement, analyses)
+            if validation_error is not None:
+                warnings.append(f"ai_invalid_decision:{decision.candidate_id}:{validation_error}")
+                continue
+            suggested_review_placements.append(
+                placement.model_copy(update={"needs_manual_review": True})
+            )
+        if suggested_review_placements:
+            return suggested_review_placements, "manual_review", [
+                *warnings,
+                "ai_needs_manual_review",
+                "ai_suggested_review_placement",
+            ]
         reviewed = [
             placement.model_copy(update={"needs_manual_review": True})
             for placement in local_placements
         ]
-        return reviewed, "manual_review", ["ai_needs_manual_review"]
+        return reviewed, "manual_review", warnings or ["ai_needs_manual_review"]
     if "reject_auto" in verdicts:
         return [], "reject_auto", ["ai_rejected_auto"]
     if verdicts == {"accept_local"}:

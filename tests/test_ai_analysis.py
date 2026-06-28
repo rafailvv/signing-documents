@@ -285,6 +285,45 @@ def test_ai_manual_review_keeps_local_placement_as_review_suggestion(tmp_path):
     assert "ai_needs_manual_review" in warnings
 
 
+def test_ai_manual_review_can_return_valid_suggested_placement(tmp_path):
+    pdf_path = tmp_path / "manual_review_suggestion.pdf"
+    pdf_path.write_bytes(
+        make_signature_pdf_bytes(
+            text="Венедиктов Р.В.",
+            line=(210, 720, 430, 720),
+        )
+    )
+    analyses = analyze_pdf(pdf_path, ocr_languages="eng")
+
+    placements, verdict, warnings = apply_ai_review_decisions(
+        decisions=AIPlacementDecisions(
+            decisions=[
+                AIPlacementDecision(
+                    candidate_id="target_1",
+                    page_number=1,
+                    verdict="manual_review",
+                    should_sign=True,
+                    should_stamp=True,
+                    should_add_name=False,
+                    signature_bbox=BoundingBox(x0=185, y0=680, x1=385, y1=745),
+                    stamp_bbox=BoundingBox(x0=120, y0=660, x1=230, y1=770),
+                    confidence=0.76,
+                    needs_manual_review=True,
+                    reason="best suggestion, but user should verify",
+                )
+            ]
+        ),
+        analyses=analyses,
+        local_placements=[],
+    )
+
+    assert verdict == "manual_review"
+    assert len(placements) == 1
+    assert placements[0].source == "ai"
+    assert placements[0].needs_manual_review
+    assert "ai_suggested_review_placement" in warnings
+
+
 def test_ai_adjust_local_rejects_invalid_stamp_bbox(tmp_path):
     pdf_path = tmp_path / "invalid.pdf"
     pdf_path.write_bytes(
