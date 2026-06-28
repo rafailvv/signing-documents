@@ -123,7 +123,7 @@ def calculate_stamp_bbox(
         x0 = signature_bbox.x1 - size * 0.55
     else:
         x0 = signature_bbox.x0 - size * 0.35
-    y0 = signature_bbox.y0 + signature_height * 0.58 - size * 0.5
+    y0 = signature_bbox.y1 - size * 0.2
     return clamp_bbox(BoundingBox(x0=x0, y0=y0, x1=x0 + size, y1=y0 + size), page_size)
 
 

@@ -45,6 +45,7 @@ def test_stamp_bbox_is_40mm_and_overlaps_signature():
     assert stamp.x0 < signature.x0
     assert signature.x0 < stamp.x1 < signature.x1
     assert stamp.y0 < signature.y1 and stamp.y1 > signature.y0
+    assert stamp.y0 > (signature.y0 + signature.y1) / 2
 
 
 def test_stamp_moves_right_for_left_side_signature_line():
@@ -57,6 +58,20 @@ def test_stamp_moves_right_for_left_side_signature_line():
     assert signature.x0 < stamp.x0 < signature.x1
     assert stamp.x1 > signature.x1
     assert stamp.y0 < signature.y1 and stamp.y1 > signature.y0
+    assert stamp.y0 > (signature.y0 + signature.y1) / 2
+
+
+def test_stamp_sits_lower_left_for_written_full_name_signature_line():
+    page_size = PageSize(width=595.2, height=841.92)
+    line = BoundingBox(x0=201.9, y0=569.4, x1=363.8, y1=570.4)
+
+    signature = calculate_signature_bbox(line, page_size)
+    stamp = calculate_stamp_bbox(signature, page_size, line_bbox=line)
+
+    assert stamp.x0 < signature.x0
+    assert signature.x0 < stamp.x1 < signature.x1
+    assert stamp.y0 > (signature.y0 + signature.y1) / 2
+    assert stamp.y0 < signature.y1
 
 
 def test_name_bbox_is_large_enough_for_default_name():
@@ -134,6 +149,38 @@ def test_create_auto_placement_does_not_add_initials_when_full_written_name_exis
 
     assert len(placements) == 1
     assert placements[0].name is None
+
+
+def test_create_auto_placement_uses_lower_signer_line_with_written_full_name(tmp_path):
+    pdf_path = tmp_path / "enrollment_order.pdf"
+    pdf_path.write_bytes(
+        make_signature_pdf_bytes(
+            text="/ Венедиктов Рафаил Владимирович",
+            text_position=(365, 570),
+            line=(202, 570, 364, 570),
+            extra_lines=[
+                (85, 301, 421, 301),
+                (91, 363, 505, 363),
+                (85, 465, 194, 465),
+            ],
+        )
+    )
+    analyses = analyze_pdf(pdf_path)
+
+    placements = create_auto_placements(
+        analyses,
+        ProcessingOptions(add_name_if_missing=True),
+    )
+
+    assert len(placements) == 1
+    placement = placements[0]
+    assert placement.name is None
+    assert placement.signature is not None
+    assert placement.stamp is not None
+    assert 190 <= placement.signature.bbox.x0 <= 230
+    assert 540 <= placement.signature.bbox.y0 <= 565
+    assert placement.stamp.bbox.x0 < placement.signature.bbox.x0
+    assert placement.stamp.bbox.y0 > (placement.signature.bbox.y0 + placement.signature.bbox.y1) / 2
 
 
 def test_create_auto_placement_respects_signature_and_stamp_options(tmp_path):
