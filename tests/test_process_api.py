@@ -103,7 +103,20 @@ def test_openapi_documents_integration_api(tmp_path):
     assert "Integration API" in {tag["name"] for tag in openapi["tags"]}
     assert "/api/process" in openapi["paths"]
     assert "/api/process-file" in openapi["paths"]
+    assert "/analyze" in openapi["paths"]
     assert openapi["paths"]["/api/process"]["post"]["summary"] == "Загрузить PDF, обработать и получить ссылку на результат"
+    for path in ["/api/process", "/api/process-file"]:
+        process_schema_ref = openapi["paths"][path]["post"]["requestBody"]["content"]["multipart/form-data"]["schema"]["$ref"]
+        process_schema_name = process_schema_ref.rsplit("/", 1)[-1]
+        process_schema = openapi["components"]["schemas"][process_schema_name]
+        assert "use_ai" in process_schema["properties"]
+    analyze_schema_ref = openapi["paths"]["/analyze"]["post"]["requestBody"]["content"]["application/json"]["schema"]["$ref"]
+    analyze_schema_name = analyze_schema_ref.rsplit("/", 1)[-1]
+    analyze_schema = openapi["components"]["schemas"][analyze_schema_name]
+    options_schema_ref = analyze_schema["properties"]["options"]["$ref"]
+    options_schema_name = options_schema_ref.rsplit("/", 1)[-1]
+    options_schema = openapi["components"]["schemas"][options_schema_name]
+    assert "use_ai" in options_schema["properties"]
 
 
 def test_swagger_docs_load_assets_with_compatible_csp(tmp_path):
