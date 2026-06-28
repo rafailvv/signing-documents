@@ -16,7 +16,7 @@ def test_signature_bbox_scales_from_line_width():
 
     bbox = calculate_signature_bbox(line, page_size)
 
-    assert 180 <= bbox.x1 - bbox.x0 <= 190
+    assert 225 <= bbox.x1 - bbox.x0 <= 235
     assert bbox.y0 < line.y0 < bbox.y1
     assert bbox.x0 >= 0
     assert bbox.x1 <= page_size.width
@@ -28,7 +28,7 @@ def test_signature_bbox_is_larger_and_lower_for_short_approval_line():
 
     bbox = calculate_signature_bbox(line, page_size)
 
-    assert bbox.x1 - bbox.x0 >= 165
+    assert bbox.x1 - bbox.x0 >= 180
     assert bbox.y0 < line.y0 < bbox.y1
     assert bbox.y1 - line.y1 > 20
 
@@ -45,7 +45,7 @@ def test_stamp_bbox_is_40mm_and_overlaps_signature():
     assert stamp.x0 < signature.x0
     assert signature.x0 < stamp.x1 < signature.x1
     assert stamp.y0 < signature.y1 and stamp.y1 > signature.y0
-    assert stamp.y0 > (signature.y0 + signature.y1) / 2
+    assert 18 <= signature.y1 - stamp.y0 <= 35
 
 
 def test_stamp_moves_right_for_left_side_signature_line():
@@ -58,7 +58,7 @@ def test_stamp_moves_right_for_left_side_signature_line():
     assert signature.x0 < stamp.x0 < signature.x1
     assert stamp.x1 > signature.x1
     assert stamp.y0 < signature.y1 and stamp.y1 > signature.y0
-    assert stamp.y0 > (signature.y0 + signature.y1) / 2
+    assert 18 <= signature.y1 - stamp.y0 <= 35
 
 
 def test_stamp_sits_lower_left_for_written_full_name_signature_line():
@@ -70,8 +70,8 @@ def test_stamp_sits_lower_left_for_written_full_name_signature_line():
 
     assert stamp.x0 < signature.x0
     assert signature.x0 < stamp.x1 < signature.x1
-    assert stamp.y0 > (signature.y0 + signature.y1) / 2
     assert stamp.y0 < signature.y1
+    assert 18 <= signature.y1 - stamp.y0 <= 35
 
 
 def test_name_bbox_is_large_enough_for_default_name():
@@ -180,7 +180,7 @@ def test_create_auto_placement_uses_lower_signer_line_with_written_full_name(tmp
     assert 190 <= placement.signature.bbox.x0 <= 230
     assert 540 <= placement.signature.bbox.y0 <= 565
     assert placement.stamp.bbox.x0 < placement.signature.bbox.x0
-    assert placement.stamp.bbox.y0 > (placement.signature.bbox.y0 + placement.signature.bbox.y1) / 2
+    assert 18 <= placement.signature.bbox.y1 - placement.stamp.bbox.y0 <= 35
 
 
 def test_create_auto_placement_respects_signature_and_stamp_options(tmp_path):

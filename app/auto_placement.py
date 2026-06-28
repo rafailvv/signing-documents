@@ -90,10 +90,10 @@ def create_placement_from_target(
 def calculate_signature_bbox(line_bbox: BoundingBox, page_size: PageSize) -> BoundingBox:
     line_width = line_bbox.x1 - line_bbox.x0
     if line_width < 150:
-        signature_width = max(line_width * 1.35, 165)
+        signature_width = max(line_width * 1.55, 180)
     else:
-        signature_width = max(line_width * 0.85, 130)
-    signature_width = min(signature_width, min(260, page_size.width * 0.45))
+        signature_width = max(line_width * 1.05, 160)
+    signature_width = min(signature_width, min(290, page_size.width * 0.5))
     signature_height = signature_width * 0.32
     center_x = (line_bbox.x0 + line_bbox.x1) / 2
     baseline_y = (line_bbox.y0 + line_bbox.y1) / 2
@@ -123,7 +123,7 @@ def calculate_stamp_bbox(
         x0 = signature_bbox.x1 - size * 0.55
     else:
         x0 = signature_bbox.x0 - size * 0.35
-    y0 = signature_bbox.y1 - size * 0.2
+    y0 = signature_bbox.y1 - size * 0.28
     return clamp_bbox(BoundingBox(x0=x0, y0=y0, x1=x0 + size, y1=y0 + size), page_size)
 
 
