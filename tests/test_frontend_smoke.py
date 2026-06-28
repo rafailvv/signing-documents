@@ -69,6 +69,11 @@ def test_frontend_contains_mobile_ux_structure(tmp_path):
     assert "uploadBatchMaxBytes" in html
     assert "makeUploadBatches" in html
     assert "uploadFileBatch" in html
+    assert "button-spinner" in html
+    assert "withDownloadLoading" in html
+    assert "setButtonLoading" in html
+    assert "force_zip: forceZip" in html
+    assert "exportJobs(readyIds, { forceZip: true })" in html
     assert "JSON.stringify({ [key.ids]: [id], options: options() })" in html
 
 

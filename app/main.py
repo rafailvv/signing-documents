@@ -826,6 +826,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 user_id=current_user.id,
                 signature_png=current_user.assets.signature_png if current_user.assets else None,
                 stamp_png=current_user.assets.stamp_png if current_user.assets else None,
+                force_zip=request.force_zip,
             )
         except Exception as exc:
             raise HTTPException(status_code=422, detail=f"export failed: {exc}") from exc

@@ -237,6 +237,7 @@ class ExportResult(BaseModel):
 
 class ExportRequest(BaseModel):
     job_ids: list[str] = Field(min_length=1)
+    force_zip: bool = False
 
 
 class ExportResponse(BaseModel):

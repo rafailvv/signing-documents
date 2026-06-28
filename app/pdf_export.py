@@ -16,6 +16,7 @@ def export_jobs(
     user_id: int = 0,
     signature_png: bytes | None = None,
     stamp_png: bytes | None = None,
+    force_zip: bool = False,
 ) -> ExportResult:
     export_id = storage.new_export_id()
     export_dir = storage.prepare_export_dir(export_id)
@@ -43,7 +44,7 @@ def export_jobs(
             )
         )
 
-    if len(output_paths) == 1:
+    if len(output_paths) == 1 and not force_zip:
         return ExportResult(
             export_id=export_id,
             user_id=user_id,

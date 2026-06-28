@@ -98,6 +98,24 @@ def test_export_single_pdf_and_download_contains_overlays_and_name(tmp_path):
         assert len(page.get_images(full=True)) >= 2
 
 
+def test_export_single_pdf_can_force_zip(tmp_path):
+    client, _app = make_client(tmp_path)
+    job_id = upload_pdf(client, "single_archive.pdf")
+    save_placement(client, job_id)
+
+    response = client.post("/export", json={"job_ids": [job_id], "force_zip": True})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["type"] == "zip"
+    download = client.get(body["download_url"])
+    assert download.status_code == 200
+    assert download.headers["content-type"].startswith("application/zip")
+
+    with ZipFile(BytesIO(download.content)) as archive:
+        assert archive.namelist() == ["single_archive_signed.pdf"]
+
+
 def test_reset_removes_exported_files_from_runtime(tmp_path):
     client, app = make_client(tmp_path)
     job_id = upload_pdf(client, "temporary.pdf")
