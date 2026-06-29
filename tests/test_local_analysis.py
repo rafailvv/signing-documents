@@ -115,6 +115,30 @@ def test_analyze_pdf_uses_text_underscore_signature_line(tmp_path):
     assert candidate.line_bbox.x1 > 350
 
 
+def test_signature_word_line_wins_over_name_line_on_same_row(tmp_path):
+    path = tmp_path / "income_signature_line.pdf"
+    document = fitz.open()
+    page = document.new_page(width=595, height=842)
+    font_path = find_unicode_font()
+    kwargs = {"fontfile": str(font_path), "fontname": "testfont"} if font_path else {}
+    page.draw_line((37, 634), (311, 634), width=1)
+    page.draw_line((338, 634), (430, 634), width=1)
+    page.insert_text((103, 633), "Венедиктов Рафаил Владимирович", fontsize=10, **kwargs)
+    page.insert_text((369, 644), "(подпись)", fontsize=8, **kwargs)
+    document.save(path)
+    document.close()
+
+    analysis = analyze_pdf(path)[0]
+
+    anchors = [candidate.anchor for candidate in analysis.candidates]
+    assert anchors == ["подпись"]
+    candidate = analysis.candidates[0]
+    assert candidate.confidence >= 0.7
+    assert candidate.line_bbox is not None
+    assert 330 <= candidate.line_bbox.x0 <= 345
+    assert 425 <= candidate.line_bbox.x1 <= 435
+
+
 def test_analyze_endpoint_saves_results_and_sets_ready_status(tmp_path):
     client, app = make_client(tmp_path)
     job_id = upload_pdf(
@@ -125,7 +149,19 @@ def test_analyze_endpoint_saves_results_and_sets_ready_status(tmp_path):
         ),
     )
 
-    response = client.post("/analyze", json={"job_ids": [job_id]})
+    response = client.post(
+        "/analyze",
+        json={
+            "job_ids": [job_id],
+            "options": {
+                "place_signature": True,
+                "place_stamp": True,
+                "add_name_if_missing": True,
+                "use_ai": False,
+                "require_manual_confirmation": True,
+            },
+        },
+    )
 
     assert response.status_code == 200
     body = response.json()
@@ -176,7 +212,19 @@ def test_analyze_endpoint_marks_ambiguous_multiple_lines_needs_review(tmp_path):
         ),
     )
 
-    response = client.post("/analyze", json={"job_ids": [job_id]})
+    response = client.post(
+        "/analyze",
+        json={
+            "job_ids": [job_id],
+            "options": {
+                "place_signature": True,
+                "place_stamp": True,
+                "add_name_if_missing": True,
+                "use_ai": False,
+                "require_manual_confirmation": True,
+            },
+        },
+    )
 
     assert response.status_code == 200
     body = response.json()

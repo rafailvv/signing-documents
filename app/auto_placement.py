@@ -10,6 +10,7 @@ from .models import (
     Placement,
     ProcessingOptions,
     SignatureTarget,
+    WordBox,
 )
 
 
@@ -49,7 +50,11 @@ def create_placement_from_target(
     stamp = None
     name = None
 
-    signature_bbox = calculate_signature_bbox(target.line_bbox, analysis.page_size)
+    signature_bbox = calculate_signature_bbox(
+        target.line_bbox,
+        analysis.page_size,
+        anchor=target.anchor,
+    )
 
     if options.place_signature:
         signature = ImageOverlay(enabled=True, bbox=signature_bbox, rotation=0)
@@ -59,6 +64,7 @@ def create_placement_from_target(
             signature_bbox,
             analysis.page_size,
             line_bbox=target.line_bbox,
+            anchor=target.anchor,
         )
         stamp = ImageOverlay(enabled=True, bbox=stamp_bbox, rotation=0)
 
@@ -87,9 +93,16 @@ def create_placement_from_target(
     )
 
 
-def calculate_signature_bbox(line_bbox: BoundingBox, page_size: PageSize) -> BoundingBox:
+def calculate_signature_bbox(
+    line_bbox: BoundingBox,
+    page_size: PageSize,
+    *,
+    anchor: str | None = None,
+) -> BoundingBox:
     line_width = line_bbox.x1 - line_bbox.x0
-    if line_width < 150:
+    if anchor == "подпись" and line_width < 150:
+        signature_width = max(line_width * 1.65, 165)
+    elif line_width < 150:
         signature_width = max(line_width * 2.05, 225)
     else:
         signature_width = max(line_width * 1.55, 230)
@@ -115,6 +128,7 @@ def calculate_stamp_bbox(
     page_size: PageSize,
     *,
     line_bbox: BoundingBox | None = None,
+    anchor: str | None = None,
 ) -> BoundingBox:
     signature_width = signature_bbox.x1 - signature_bbox.x0
     signature_height = signature_bbox.y1 - signature_bbox.y0
@@ -122,11 +136,14 @@ def calculate_stamp_bbox(
 
     anchor_bbox = line_bbox or signature_bbox
     anchor_center_x = (anchor_bbox.x0 + anchor_bbox.x1) / 2
-    if anchor_center_x < page_size.width * 0.42:
+    if anchor == "подпись" and signature_width < 180:
+        x0 = signature_bbox.x0 - size * 0.18
+    elif anchor_center_x < page_size.width * 0.42:
         x0 = signature_bbox.x1 - size * 0.35
     else:
         x0 = signature_bbox.x0 + signature_width * 0.08
-    y0 = signature_bbox.y1 - size * 0.42
+    overlap_ratio = 0.28 if anchor == "подпись" and signature_width < 180 else 0.42
+    y0 = signature_bbox.y1 - size * overlap_ratio
     return clamped_bbox_from_size(
         x0=x0,
         y0=y0,
@@ -158,7 +175,24 @@ def page_has_full_name_near_target(
         for word in analysis.words
         if bboxes_overlap_or_near(word.bbox, target.context_bbox, padding=20)
     ]
-    normalized = [normalize_token(word.text) for word in nearby_words]
+    if contains_venediktov_full_name(nearby_words):
+        return True
+
+    if target.line_bbox is not None:
+        target_y = (target.line_bbox.y0 + target.line_bbox.y1) / 2
+        same_row_words = [
+            word
+            for word in analysis.words
+            if abs(((word.bbox.y0 + word.bbox.y1) / 2) - target_y) <= 18
+        ]
+        if contains_venediktov_full_name(same_row_words):
+            return True
+
+    return False
+
+
+def contains_venediktov_full_name(words: list[WordBox]) -> bool:
+    normalized = [normalize_token(word.text) for word in words]
     for index in range(0, len(normalized) - 1):
         if normalized[index] == "венедиктов" and normalized[index + 1] == "рв":
             return True

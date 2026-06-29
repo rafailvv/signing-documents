@@ -313,7 +313,9 @@ def build_signature_targets(
             )
         )
 
-    return deduplicate_targets_by_line(candidates)
+    return suppress_name_targets_when_signature_line_exists(
+        deduplicate_targets_by_line(candidates)
+    )
 
 
 def normalize_token(value: str) -> str:
@@ -412,7 +414,7 @@ def confidence_for_anchor(kind: str, *, has_line: bool) -> float:
         "venediktov_full_name": 0.9,
         "venediktov": 0.82,
         "general_director": 0.76,
-        "signature_word": 0.62,
+        "signature_word": 0.78,
         "fio_word": 0.58,
     }.get(kind, 0.5)
 
@@ -478,6 +480,46 @@ def deduplicate_targets_by_line(candidates: list[SignatureTarget]) -> list[Signa
             )
         grouped.setdefault(key, candidate)
     return sorted(grouped.values(), key=lambda item: item.confidence, reverse=True)
+
+
+def suppress_name_targets_when_signature_line_exists(
+    candidates: list[SignatureTarget],
+) -> list[SignatureTarget]:
+    signature_line_targets = [
+        candidate
+        for candidate in candidates
+        if candidate.anchor == "подпись" and candidate.line_bbox is not None
+    ]
+    if not signature_line_targets:
+        return candidates
+
+    filtered: list[SignatureTarget] = []
+    for candidate in candidates:
+        if candidate.line_bbox is None or candidate.anchor not in {"Венедиктов", "Венедиктов Р.В."}:
+            filtered.append(candidate)
+            continue
+        name_line_y = line_center_y(candidate.line_bbox)
+        has_better_signature_line = any(
+            is_separate_signature_line_on_same_row(candidate.line_bbox, signature_target.line_bbox)
+            and line_center_y(signature_target.line_bbox) - 12 <= name_line_y <= line_center_y(signature_target.line_bbox) + 12
+            for signature_target in signature_line_targets
+            if signature_target.line_bbox is not None
+        )
+        if not has_better_signature_line:
+            filtered.append(candidate)
+    return filtered
+
+
+def is_separate_signature_line_on_same_row(
+    name_line: BoundingBox,
+    signature_line: BoundingBox,
+) -> bool:
+    horizontal_gap = signature_line.x0 - name_line.x1
+    return 0 <= horizontal_gap <= 80
+
+
+def line_center_y(line: BoundingBox) -> float:
+    return (line.y0 + line.y1) / 2
 
 
 def anchor_priority(anchor: str) -> int:

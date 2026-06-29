@@ -1,3 +1,5 @@
+import fitz
+
 from app.auto_placement import (
     STAMP_SIZE_POINTS,
     calculate_name_bbox,
@@ -7,6 +9,7 @@ from app.auto_placement import (
 )
 from app.local_analysis import analyze_pdf
 from app.models import BoundingBox, PageSize, ProcessingOptions
+from app.pdf_export import find_unicode_font
 from tests.pdf_factory import make_signature_pdf_bytes
 
 
@@ -31,6 +34,18 @@ def test_signature_bbox_is_larger_and_lower_for_short_approval_line():
     assert bbox.x1 - bbox.x0 >= 225
     assert bbox.y0 < line.y0 < bbox.y1
     assert bbox.y1 - line.y1 > 20
+
+
+def test_signature_bbox_is_compact_for_explicit_signature_word_line():
+    page_size = PageSize(width=595, height=842)
+    line = BoundingBox(x0=338, y0=634, x1=430, y1=635)
+
+    bbox = calculate_signature_bbox(line, page_size, anchor="подпись")
+
+    assert 160 <= bbox.x1 - bbox.x0 <= 175
+    assert bbox.y0 < line.y0 < bbox.y1
+    assert bbox.x0 > 295
+    assert bbox.x1 < 475
 
 
 def test_signature_bbox_clamps_when_line_is_near_left_page_edge():
@@ -70,6 +85,24 @@ def test_stamp_moves_right_for_left_side_signature_line():
     assert stamp.x1 > signature.x1
     assert stamp.y0 < signature.y1 and stamp.y1 > signature.y0
     assert 40 <= signature.y1 - stamp.y0 <= 55
+
+
+def test_stamp_slightly_overlaps_compact_signature_word_line():
+    page_size = PageSize(width=595, height=842)
+    line = BoundingBox(x0=338, y0=634, x1=430, y1=635)
+    signature = calculate_signature_bbox(line, page_size, anchor="подпись")
+
+    stamp = calculate_stamp_bbox(
+        signature,
+        page_size,
+        line_bbox=line,
+        anchor="подпись",
+    )
+
+    assert stamp.x0 < signature.x0
+    assert stamp.x1 < signature.x1
+    assert stamp.x1 > signature.x0
+    assert 20 <= signature.y1 - stamp.y0 <= 35
 
 
 def test_stamp_sits_lower_left_for_written_full_name_signature_line():
@@ -192,6 +225,36 @@ def test_create_auto_placement_uses_lower_signer_line_with_written_full_name(tmp
     assert 520 <= placement.signature.bbox.y0 <= 535
     assert placement.signature.bbox.x0 < placement.stamp.bbox.x0 < placement.signature.bbox.x1
     assert 40 <= placement.signature.bbox.y1 - placement.stamp.bbox.y0 <= 55
+
+
+def test_create_auto_placement_uses_signature_line_not_name_line(tmp_path):
+    pdf_path = tmp_path / "income_form.pdf"
+    document = fitz.open()
+    page = document.new_page(width=595, height=842)
+    font_path = find_unicode_font()
+    kwargs = {"fontfile": str(font_path), "fontname": "testfont"} if font_path else {}
+    page.draw_line((37, 634), (311, 634), width=1)
+    page.draw_line((338, 634), (430, 634), width=1)
+    page.insert_text((103, 633), "Венедиктов Рафаил Владимирович", fontsize=10, **kwargs)
+    page.insert_text((102, 645), "налоговый агент (фамилия, имя, отчество)", fontsize=8, **kwargs)
+    page.insert_text((369, 644), "(подпись)", fontsize=8, **kwargs)
+    document.save(pdf_path)
+    document.close()
+
+    placements = create_auto_placements(
+        analyze_pdf(pdf_path),
+        ProcessingOptions(add_name_if_missing=True),
+    )
+
+    assert len(placements) == 1
+    placement = placements[0]
+    assert placement.name is None
+    assert placement.signature is not None
+    assert placement.stamp is not None
+    assert placement.signature.bbox.x0 > 250
+    assert placement.signature.bbox.x1 < 480
+    assert placement.stamp.bbox.x0 > 280
+    assert placement.stamp.bbox.x0 < placement.signature.bbox.x1
 
 
 def test_create_auto_placement_respects_signature_and_stamp_options(tmp_path):
