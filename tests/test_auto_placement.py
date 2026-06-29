@@ -33,6 +33,17 @@ def test_signature_bbox_is_larger_and_lower_for_short_approval_line():
     assert bbox.y1 - line.y1 > 20
 
 
+def test_signature_bbox_clamps_when_line_is_near_left_page_edge():
+    page_size = PageSize(width=595.32, height=841.92)
+    line = BoundingBox(x0=37.38, y0=633.62, x1=311.05, y1=634.62)
+
+    bbox = calculate_signature_bbox(line, page_size)
+
+    assert bbox.x0 == 0
+    assert bbox.x1 <= page_size.width
+    assert bbox.y0 < line.y0 < bbox.y1
+
+
 def test_stamp_bbox_is_40mm_and_overlaps_signature():
     page_size = PageSize(width=595, height=842)
     signature = BoundingBox(x0=330, y0=610, x1=540, y1=690)

@@ -101,9 +101,12 @@ def calculate_signature_bbox(line_bbox: BoundingBox, page_size: PageSize) -> Bou
     x0 = center_x - signature_width / 2
     y1 = baseline_y + signature_height * 0.45
     y0 = y1 - signature_height
-    return clamp_bbox(
-        BoundingBox(x0=x0, y0=y0, x1=x0 + signature_width, y1=y1),
-        page_size,
+    return clamped_bbox_from_size(
+        x0=x0,
+        y0=y0,
+        width=signature_width,
+        height=signature_height,
+        page_size=page_size,
     )
 
 
@@ -124,7 +127,13 @@ def calculate_stamp_bbox(
     else:
         x0 = signature_bbox.x0 + signature_width * 0.08
     y0 = signature_bbox.y1 - size * 0.42
-    return clamp_bbox(BoundingBox(x0=x0, y0=y0, x1=x0 + size, y1=y0 + size), page_size)
+    return clamped_bbox_from_size(
+        x0=x0,
+        y0=y0,
+        width=size,
+        height=size,
+        page_size=page_size,
+    )
 
 
 def calculate_name_bbox(signature_bbox: BoundingBox, page_size: PageSize) -> BoundingBox:
@@ -174,8 +183,27 @@ def bboxes_overlap_or_near(a: BoundingBox, b: BoundingBox, padding: float = 0) -
 def clamp_bbox(bbox: BoundingBox, page_size: PageSize) -> BoundingBox:
     width = bbox.x1 - bbox.x0
     height = bbox.y1 - bbox.y0
-    x0 = min(max(0, bbox.x0), max(0, page_size.width - width))
-    y0 = min(max(0, bbox.y0), max(0, page_size.height - height))
+    return clamped_bbox_from_size(
+        x0=bbox.x0,
+        y0=bbox.y0,
+        width=width,
+        height=height,
+        page_size=page_size,
+    )
+
+
+def clamped_bbox_from_size(
+    *,
+    x0: float,
+    y0: float,
+    width: float,
+    height: float,
+    page_size: PageSize,
+) -> BoundingBox:
+    width = min(width, page_size.width)
+    height = min(height, page_size.height)
+    x0 = min(max(0, x0), max(0, page_size.width - width))
+    y0 = min(max(0, y0), max(0, page_size.height - height))
     return BoundingBox(
         x0=x0,
         y0=y0,
