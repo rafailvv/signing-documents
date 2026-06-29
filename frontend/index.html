@@ -508,6 +508,8 @@
 
       .document-list {
         display: grid;
+        grid-auto-rows: max-content;
+        align-content: start;
         gap: 10px;
         flex: 1 1 auto;
         min-height: 0;
@@ -547,6 +549,7 @@
 
       .document-card {
         width: 100%;
+        min-height: 86px;
         padding: 14px;
         text-align: left;
         display: grid;
@@ -1467,6 +1470,8 @@
 
         .document-list {
           display: flex;
+          align-items: flex-start;
+          flex: 0 0 auto;
           gap: 10px;
           overflow-x: auto;
           overflow-y: hidden;
@@ -1483,7 +1488,9 @@
         .document-card {
           flex: 0 0 218px;
           scroll-snap-align: start;
+          height: 76px;
           min-height: 76px;
+          max-height: 76px;
           padding: 12px;
           border-radius: 20px;
         }
