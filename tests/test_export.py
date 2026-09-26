@@ -4,6 +4,7 @@ from zipfile import ZipFile
 
 import fitz
 from fastapi.testclient import TestClient
+from PIL import Image, ImageDraw
 
 from app.config import Settings
 from app.main import create_app
@@ -85,7 +86,7 @@ def test_export_single_pdf_and_download_contains_overlays_and_name(tmp_path):
     body = response.json()
     assert body["type"] == "pdf"
     assert body["download_url"] == f"/download/{body['export_id']}"
-    assert body["files"][0]["output_filename"] == "single_signed.pdf"
+    assert body["files"][0]["output_filename"] == "single.pdf"
     assert app.state.jobs.get(job_id).status == JobStatus.EXPORTED
 
     download = client.get(body["download_url"])
@@ -96,6 +97,52 @@ def test_export_single_pdf_and_download_contains_overlays_and_name(tmp_path):
         page = document[0]
         assert "Венедиктов" in page.get_text()
         assert len(page.get_images(full=True)) >= 2
+
+
+def test_large_transparent_signature_is_downsampled_and_reused(tmp_path):
+    client, _app = make_client(tmp_path)
+    signature = Image.new("RGBA", (2400, 1800), (255, 255, 255, 0))
+    draw = ImageDraw.Draw(signature)
+    for offset in range(0, 1800, 30):
+        draw.line((0, offset, 2399, min(1799, offset + 400)), fill=(20, 40, 180, 180), width=5)
+    signature.save(tmp_path / "signature.png")
+
+    upload = client.post(
+        "/upload",
+        files={"files": ("large-signature.pdf", make_pdf_bytes(page_count=2), "application/pdf")},
+    )
+    assert upload.status_code == 200
+    job_id = upload.json()["jobs"][0]["job_id"]
+    placements = [
+        {
+            "placement_id": f"page_{page_number}",
+            "page_number": page_number,
+            "signature": {
+                "enabled": True,
+                "bbox": {"x0": 120, "y0": 610, "x1": 330, "y1": 690},
+            },
+            "confidence": 1,
+            "needs_manual_review": False,
+            "source": "manual",
+        }
+        for page_number in (1, 2)
+    ]
+    saved = client.post(f"/placement/{job_id}", json={"placements": placements, "confirmed_by_user": True})
+    assert saved.status_code == 200
+
+    response = client.post("/export", json={"job_ids": [job_id]})
+    assert response.status_code == 200
+    download = client.get(response.json()["download_url"])
+    assert download.status_code == 200
+    assert len(download.content) < 300_000
+
+    with fitz.open(stream=download.content, filetype="pdf") as document:
+        first_image = document[0].get_images(full=True)[0]
+        second_image = document[1].get_images(full=True)[0]
+        assert first_image[0] == second_image[0]
+        assert first_image[1] > 0  # Transparency survives the resize.
+        assert first_image[2] <= 875  # 210 pt at 300 DPI.
+        assert first_image[3] <= 334  # 80 pt at 300 DPI.
 
 
 def test_export_single_pdf_can_force_zip(tmp_path):
@@ -113,7 +160,10 @@ def test_export_single_pdf_can_force_zip(tmp_path):
     assert download.headers["content-type"].startswith("application/zip")
 
     with ZipFile(BytesIO(download.content)) as archive:
-        assert archive.namelist() == ["single_archive_signed.pdf"]
+        archive_dir = f"signed_documents_{body['export_id'].rsplit('_', 1)[-1][:8]}"
+        assert archive.namelist() == [
+            f"{archive_dir}/single_archive.pdf"
+        ]
 
 
 def test_reset_removes_exported_files_from_runtime(tmp_path):
@@ -174,13 +224,42 @@ def test_export_multiple_pdfs_returns_zip(tmp_path):
     assert download.headers["content-type"].startswith("application/zip")
 
     with ZipFile(BytesIO(download.content)) as archive:
+        archive_dir = f"signed_documents_{body['export_id'].rsplit('_', 1)[-1][:8]}"
         assert sorted(archive.namelist()) == [
-            "first_signed.pdf",
-            "second_signed.pdf",
+            f"{archive_dir}/first.pdf",
+            f"{archive_dir}/second.pdf",
         ]
         for filename in archive.namelist():
             with fitz.open(stream=archive.read(filename), filetype="pdf") as document:
                 assert document.page_count == 1
+
+
+def test_export_preserves_pdfs_with_duplicate_filenames(tmp_path):
+    client, _app = make_client(tmp_path)
+    first_job_id = upload_pdf(client, "document.pdf")
+    second_job_id = upload_pdf(client, "document.pdf")
+    save_placement(client, first_job_id)
+    save_placement(client, second_job_id)
+
+    response = client.post(
+        "/export",
+        json={"job_ids": [first_job_id, second_job_id], "force_zip": True},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert [item["output_filename"] for item in body["files"]] == [
+        "document.pdf",
+        "document_2.pdf",
+    ]
+
+    download = client.get(body["download_url"])
+    with ZipFile(BytesIO(download.content)) as archive:
+        archive_dir = f"signed_documents_{body['export_id'].rsplit('_', 1)[-1][:8]}"
+        assert archive.namelist() == [
+            f"{archive_dir}/document.pdf",
+            f"{archive_dir}/document_2.pdf",
+        ]
 
 
 def test_export_skips_missing_job_with_warning(tmp_path):
@@ -206,14 +285,45 @@ def test_export_without_exportable_jobs_returns_422(tmp_path):
     assert response.json()["detail"] == "job_missing: job not found"
 
 
-def test_export_requires_manual_confirmation_when_option_enabled(tmp_path):
+def test_export_includes_unconfirmed_document_instead_of_silently_skipping_it(tmp_path):
     client, _app = make_client(tmp_path)
     job_id = upload_pdf(client, "unconfirmed.pdf")
 
     response = client.post("/export", json={"job_ids": [job_id]})
 
-    assert response.status_code == 422
-    assert f"{job_id}: manual confirmation required" in response.json()["detail"]
+    assert response.status_code == 200
+    assert response.json()["files"] == [
+        {
+            "job_id": job_id,
+            "output_filename": "unconfirmed.pdf",
+            "warnings": [],
+        }
+    ]
+
+
+def test_export_all_includes_confirmed_and_unconfirmed_documents(tmp_path):
+    client, _app = make_client(tmp_path)
+    confirmed_job_id = upload_pdf(client, "confirmed.pdf")
+    unconfirmed_job_id = upload_pdf(client, "unconfirmed.pdf")
+    save_placement(client, confirmed_job_id)
+
+    response = client.post(
+        "/export",
+        json={
+            "job_ids": [confirmed_job_id, unconfirmed_job_id],
+            "force_zip": True,
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    download = client.get(body["download_url"])
+    with ZipFile(BytesIO(download.content)) as archive:
+        archive_dir = f"signed_documents_{body['export_id'].rsplit('_', 1)[-1][:8]}"
+        assert archive.namelist() == [
+            f"{archive_dir}/confirmed.pdf",
+            f"{archive_dir}/unconfirmed.pdf",
+        ]
 
 
 def test_export_allows_unconfirmed_when_manual_confirmation_disabled(tmp_path):
